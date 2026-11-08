@@ -36,6 +36,7 @@ function initApp() {
     // 5. Listen for reactive balance changes
     gameState.on('balanceChanged', () => {
         updateHeaderBalance();
+        gamblingPanel.refreshBalanceDisplay();
     });
 
     console.log('🎰 [Trilliun Chip] VIP Casino Suite loaded successfully!');

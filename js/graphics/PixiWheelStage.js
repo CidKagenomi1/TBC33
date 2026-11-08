@@ -145,7 +145,7 @@ export class PixiWheelStage {
     /**
      * Spin wheel to target sector index
      */
-    spinTo(targetIndex, { duration = 4.2 } = {}) {
+    spinTo(targetIndex, { duration = null } = {}) {
         const gsap = this._getGSAP();
         if (this.isSpinning) return Promise.resolve();
         this.isSpinning = true;
@@ -153,17 +153,28 @@ export class PixiWheelStage {
         const numSectors = this.sectors.length;
         const anglePerSector = 360 / numSectors;
 
-        // Target angle points to top (pointer is at top 0/360 degrees)
-        const targetSectorAngle = targetIndex * anglePerSector;
-        // Total rotations (5 to 8 full spins + landing offset)
-        const fullSpins = 6 * 360;
-        // Invert for clockwise rotation
-        const finalTargetAngle = this.currentAngle + fullSpins + (360 - (targetSectorAngle % 360)) + anglePerSector / 2;
+        // Natural landing jitter: random landing offset within the wedge (-30% to +30% of sector width)
+        const jitter = (Math.random() - 0.5) * (anglePerSector * 0.60);
+
+        // Target angle points to top (pointer is at top 12 o'clock, which is -90 deg in canvas polar coords)
+        // For sector i center to stop at 12 o'clock:
+        // R_target = (360 - (i + 0.5) * anglePerSector + jitter) % 360
+        const targetNorm = ((360 - (targetIndex + 0.5) * anglePerSector + jitter) % 360 + 360) % 360;
+        const curNorm = ((this.currentAngle % 360) + 360) % 360;
+        
+        let delta = ((targetNorm - curNorm + 360) % 360);
+        if (delta < 45) delta += 360; // Ensure at least 45 deg beyond full spins
+
+        // Natural random variations in revolutions (5 to 7 full spins)
+        const extraSpins = (5 + Math.floor(Math.random() * 3)) * 360;
+        const finalTargetAngle = this.currentAngle + extraSpins + delta;
+
+        const spinDuration = duration || (3.8 + Math.random() * 0.5);
 
         return new Promise((resolve) => {
             if (!gsap) {
                 this.wheelContainer.rotation = (finalTargetAngle * Math.PI) / 180;
-                this.currentAngle = finalTargetAngle % 360;
+                this.currentAngle = finalTargetAngle;
                 this.isSpinning = false;
                 resolve();
                 return;
@@ -171,27 +182,39 @@ export class PixiWheelStage {
 
             const rotObj = { angle: this.currentAngle };
             let lastPeg = -1;
+            let lastSoundTime = 0;
 
             gsap.to(rotObj, {
                 angle: finalTargetAngle,
-                duration: duration,
-                ease: 'power4.out',
+                duration: spinDuration,
+                ease: 'power3.out',
                 onUpdate: () => {
                     const rad = (rotObj.angle * Math.PI) / 180;
                     this.wheelContainer.rotation = rad;
 
-                    // Flapper deflection when passing pegs
-                    const currentSector = Math.floor(rotObj.angle / anglePerSector);
-                    if (currentSector !== lastPeg) {
-                        lastPeg = currentSector;
-                        AuraSound.playTap();
-                        gsap.timeline()
-                            .to(this.pointer, { rotation: -0.25, duration: 0.04, ease: 'power1.out' })
-                            .to(this.pointer, { rotation: 0, duration: 0.08, ease: 'back.out(2)' });
+                    // Physical peg collision check
+                    const pegSector = Math.floor((rotObj.angle + anglePerSector / 2) / anglePerSector);
+                    if (pegSector !== lastPeg) {
+                        lastPeg = pegSector;
+                        const now = performance.now();
+                        if (now - lastSoundTime > 65) {
+                            lastSoundTime = now;
+                            AuraSound.playTap();
+                        }
+                        if (this.pointer) {
+                            this.pointer.rotation = -0.32;
+                        }
+                    }
+
+                    // Smooth spring recoil for the pointer flapper
+                    if (this.pointer && this.pointer.rotation !== 0) {
+                        this.pointer.rotation += (0 - this.pointer.rotation) * 0.28;
+                        if (Math.abs(this.pointer.rotation) < 0.01) this.pointer.rotation = 0;
                     }
                 },
                 onComplete: () => {
-                    this.currentAngle = finalTargetAngle % 360;
+                    this.currentAngle = finalTargetAngle;
+                    if (this.pointer) this.pointer.rotation = 0;
                     this.isSpinning = false;
                     AuraSound.playCasinoWin();
                     resolve();

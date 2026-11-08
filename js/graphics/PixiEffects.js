@@ -60,6 +60,11 @@ class PixiEffects {
      */
     celebrateWin({ amount, bet = 100000, type = null, onComplete = null }) {
         if (typeof document === 'undefined') return;
+        if (!this.overlayContainer) {
+            this._initOverlay();
+        }
+        if (!this.overlayContainer) return;
+
         const gsap = this._getGSAP();
         const PIXI = this._getPIXI();
 
@@ -248,8 +253,8 @@ class PixiEffects {
         };
 
         collectBtn?.addEventListener('click', dismiss);
-        this.overlayContainer.addEventListener('click', (e) => {
-            if (e.target === this.overlayContainer || e.target.id === 'win-fx-canvas') {
+        this.overlayContainer?.addEventListener('click', (e) => {
+            if (e.target === this.overlayContainer || e.target?.id === 'win-fx-canvas') {
                 dismiss();
             }
         });
@@ -322,8 +327,10 @@ class PixiEffects {
                 }
             });
         } else {
-            card.style.opacity = '1';
-            card.style.transform = 'scale(1)';
+            if (card) {
+                card.style.opacity = '1';
+                card.style.transform = 'scale(1)';
+            }
             if (counterEl) counterEl.textContent = financeManager.formatCurrency(amount);
         }
     }

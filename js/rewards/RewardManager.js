@@ -80,10 +80,28 @@ export const QUEST_DEFINITIONS = [
         id: 'parlayBets',
         title: 'Analis Parlay Sports',
         desc: 'Pasang 1 taruhan tiket Parlay / Derby',
-        icon: '🚀',
+        icon: '⚽',
         target: 1,
         rewardChips: 12000000,
         unit: 'Taruhan'
+    },
+    {
+        id: 'crashFlight',
+        title: 'Nelayan Laut Dalam',
+        desc: 'Lemparkan 2 joran pancing di Golden Marlin Strike',
+        icon: '🎣',
+        target: 2,
+        rewardChips: 15000000,
+        unit: 'Lemparan'
+    },
+    {
+        id: 'plinkoDrops',
+        title: 'Hujan Kelapa Tropis',
+        desc: 'Jatuhkan 10 buah kelapa di Tiki Coco Drop Plinko',
+        icon: '🥥',
+        target: 10,
+        rewardChips: 15000000,
+        unit: 'Kelapa'
     }
 ];
 
@@ -132,6 +150,24 @@ export const ACHIEVEMENT_DEFINITIONS = [
         target: 1,
         metric: 'achievements.zeusLightning.count',
         rewardChips: 30000000
+    },
+    {
+        id: 'spaceMoonshot',
+        title: 'Tangkapan Monster Laut',
+        desc: 'Berhasil Strike ikan dengan pengali di atas 5.00x di Golden Marlin Strike',
+        icon: '🎣',
+        target: 1,
+        metric: 'achievements.spaceMoonshot.count',
+        rewardChips: 40000000
+    },
+    {
+        id: 'tikiJackpot',
+        title: 'Sultan Kelapa Tropis',
+        desc: 'Dapatkan pengali minimal 25x di Tiki Coco Drop Plinko',
+        icon: '🥥',
+        target: 1,
+        metric: 'achievements.tikiJackpot.count',
+        rewardChips: 50000000
     }
 ];
 
@@ -364,6 +400,44 @@ class RewardManager {
         gameState.set('rewards.stats.totalParlayBets', parlay);
         this._incrementQuestProgress('parlayBets', 1);
         this.updateHeaderDisplay();
+    }
+
+    trackCrashBet(amount = 0) {
+        this._ensureStateDefaults();
+        let crash = (gameState.get('rewards.stats.totalCrashBets') || 0) + 1;
+        gameState.set('rewards.stats.totalCrashBets', crash);
+        this._incrementQuestProgress('crashFlight', 1);
+        this.updateHeaderDisplay();
+    }
+
+    trackCrashCashout(multiplier = 1.0) {
+        this._ensureStateDefaults();
+        if (multiplier >= 5.0) {
+            const count = (gameState.get('rewards.achievements.spaceMoonshot.count') || 0) + 1;
+            gameState.set('rewards.achievements.spaceMoonshot.count', count);
+            this._checkAchievements();
+        }
+    }
+
+    trackPlinkoDrop(amount = 0) {
+        this._ensureStateDefaults();
+        let drops = (gameState.get('rewards.stats.totalPlinkoDrops') || 0) + 1;
+        gameState.set('rewards.stats.totalPlinkoDrops', drops);
+        this._incrementQuestProgress('plinkoDrops', 1);
+        this.updateHeaderDisplay();
+    }
+
+    trackPlinkoWin(multiplier = 1.0) {
+        this._ensureStateDefaults();
+        const highest = gameState.get('rewards.stats.highestPlinkoMultiplier') || 0;
+        if (multiplier > highest) {
+            gameState.set('rewards.stats.highestPlinkoMultiplier', multiplier);
+        }
+        if (multiplier >= 25.0) {
+            const count = (gameState.get('rewards.achievements.tikiJackpot.count') || 0) + 1;
+            gameState.set('rewards.achievements.tikiJackpot.count', count);
+            this._checkAchievements();
+        }
     }
 
     trackMahjongCombo() {

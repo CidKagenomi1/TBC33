@@ -25,6 +25,8 @@ class GameState {
                 lotteryTokens: 5,
                 lotteryJackpot: 500000000, // 500M TC starting progressive jackpot
                 lotteryHistory: [],
+                crashHistory: [1.84, 2.45, 1.15, 4.30, 1.42, 12.80, 1.95, 3.12, 1.08, 8.55], // Initial recent rounds
+                plinkoHistory: [2.0, 0.5, 1.2, 0.2, 5.0, 1.5, 0.5, 10.0, 0.2, 3.0],
                 freeSpins: 0,
                 bonusSpins: 0
             },
@@ -52,6 +54,10 @@ class GameState {
                     totalWheelSpins: 0,
                     totalLotteryTickets: 0,
                     totalParlayBets: 0,
+                    totalCrashBets: 0,
+                    highestCrashMultiplier: 0,
+                    totalPlinkoDrops: 0,
+                    highestPlinkoMultiplier: 0,
                     highestWin: 0
                 }
             },
@@ -113,6 +119,7 @@ class GameState {
             target = target[key];
         }
 
+        const oldBalance = this.state?.player?.balance;
         const oldValue = target[lastKey];
         target[lastKey] = value;
 
@@ -120,8 +127,10 @@ class GameState {
         this.emit(path, value, oldValue);
         this.emit('change', { path, value, oldValue });
 
-        if (path === 'player.balance') {
-            this.emit('balanceChanged', value, oldValue);
+        const newBalance = this.state?.player?.balance;
+        if (newBalance !== oldBalance || path === 'player.balance' || path === 'player') {
+            this.emit('balanceChanged', newBalance, oldBalance);
+            this.emit('player.balance', newBalance, oldBalance);
         }
     }
 
@@ -134,6 +143,24 @@ class GameState {
 
     getBalance() {
         return this.get('player.balance') ?? 0;
+    }
+
+    addBalance(amount) {
+        const num = Number(amount);
+        if (isNaN(num) || num <= 0) return this.getBalance();
+        const currentBalance = this.getBalance();
+        const newBalance = currentBalance + num;
+        this.set('player.balance', newBalance);
+        return newBalance;
+    }
+
+    deductBalance(amount) {
+        const num = Number(amount);
+        if (isNaN(num) || num <= 0) return this.getBalance();
+        const currentBalance = this.getBalance();
+        const newBalance = Math.max(0, currentBalance - num);
+        this.set('player.balance', newBalance);
+        return newBalance;
     }
 
     on(event, callback) {

@@ -24,10 +24,16 @@ import { ZeusSlotEngine } from './casino/ZeusSlotEngine.js';
 import { LotteryEngine } from './casino/LotteryEngine.js';
 import { WheelEngine } from './casino/WheelEngine.js';
 import { ParlayEngine } from './casino/ParlayEngine.js';
+import { CrashEngine } from './casino/CrashEngine.js';
+import { PlinkoEngine } from './casino/PlinkoEngine.js';
+import { PopDrinkEngine } from './casino/PopDrinkEngine.js';
 import casinoVolatility from './casino/CasinoVolatilityEngine.js';
 
 const GAME_CATALOG = {
     lobby: { id: 'lobby', name: 'Lobby Kasino', icon: '👑', fullTitle: '👑 VIP Casino Grand Lobby', reel: 'VIP LOBBY' },
+    popdrink: { id: 'popdrink', name: 'Pop Drink!', icon: '🥤', fullTitle: '🥤 Pop Drink! Vending Machine Plinko', reel: 'VENDING PLINKO', badge: '1000x JACKPOT' },
+    plinko: { id: 'plinko', name: 'Tiki Plinko', icon: '🥥', fullTitle: '🌴 Tiki Coco Drop Plinko (Beach Physics)', reel: 'TROPICAL PLINKO', badge: '1000x JACKPOT' },
+    crash: { id: 'crash', name: 'Marlin Strike', icon: '🎣', fullTitle: '🎣 Golden Marlin: Deep Sea Strike (Fishing Crash)', reel: 'FISHING CRASH', badge: 'STRIKE 10,000x' },
     slot: { id: 'slot', name: 'Goldy Crush', icon: '🎰', fullTitle: '🎰 Goldy Crush (6x3)', reel: '6x3 REEL', badge: 'POPULER' },
     mahjong: { id: 'mahjong', name: 'Mahjong Ways', icon: '🀄', fullTitle: '🀄 Mahjong Ways Macau (6x8)', reel: '6x8 REEL', badge: 'HOT MEGAWAYS' },
     zeus: { id: 'zeus', name: 'Gates of Olympus', icon: '⚡', fullTitle: '⚡ Gates of Olympus (6x5)', reel: '6x5 REEL', badge: 'MAXWIN 5000x' },
@@ -39,6 +45,9 @@ const GAME_CATALOG = {
 class GamblingPanel {
     constructor() {
         const refresh = () => this.refreshBalanceDisplay();
+        this.popdrink = new PopDrinkEngine(refresh);
+        this.plinko = new PlinkoEngine(refresh);
+        this.crash = new CrashEngine(refresh);
         this.slot = new SlotEngine(refresh);
         this.mahjong = new MahjongSlotEngine(refresh);
         this.zeus = new ZeusSlotEngine(refresh);
@@ -52,6 +61,11 @@ class GamblingPanel {
         gameState.on('casino.ratePlays', () => {
             this.updateLuckMeter();
             this.updateHeaderRateBadge();
+        });
+
+        // Auto-update all balance displays whenever balance changes
+        gameState.on('balanceChanged', () => {
+            this.refreshBalanceDisplay();
         });
     }
 
@@ -119,6 +133,9 @@ class GamblingPanel {
 
     getGameBodyHTML(tabId) {
         switch (tabId) {
+            case 'popdrink': return this.popdrink.getHTML();
+            case 'plinko': return this.plinko.getHTML();
+            case 'crash': return this.crash.getHTML();
             case 'slot': return this.slot.getHTML();
             case 'mahjong': return this.mahjong.getHTML();
             case 'zeus': return this.zeus.getHTML();
@@ -130,6 +147,9 @@ class GamblingPanel {
     }
 
     getInnerRateHTML() {
+        if (this.activeTab === 'popdrink' && this.popdrink) return this.popdrink.getRateStatusHTML();
+        if (this.activeTab === 'plinko' && this.plinko) return this.plinko.getRateStatusHTML();
+        if (this.activeTab === 'crash' && this.crash) return this.crash.getRateStatusHTML();
         if (this.activeTab === 'slot' && this.slot) return this.slot.getRateStatusHTML();
         if (this.activeTab === 'mahjong' && this.mahjong) return this.mahjong.getRateStatusHTML();
         if (this.activeTab === 'zeus' && this.zeus) return this.zeus.getRateStatusHTML();
@@ -167,6 +187,12 @@ class GamblingPanel {
                     <div class="marquee-tag">LIVE FEED</div>
                     <div class="marquee-content-wrap">
                         <div class="marquee-track">
+                            <span>🥤 POP DRINK!: VENDING MACHINE SULTAN GOLD CAN MULTIPLIER 1000x</span>
+                            <span class="marquee-bullet">•</span>
+                            <span>🎣 GOLDEN MARLIN: TARIK IKAN MONSTER SAMUDRA MULTIPLIER 10.000x</span>
+                            <span class="marquee-bullet">•</span>
+                            <span>🌴 TIKI COCO PLINKO: HUJAN KELAPA EMAS MULTIPLIER 1000x</span>
+                            <span class="marquee-bullet">•</span>
                             <span>🏆 GRAND JACKPOT 4D: 100.000.000+ TC</span>
                             <span class="marquee-bullet">•</span>
                             <span>⚡ GATES OF OLYMPUS: MULTIPLIER 500x PETIR ZEUS</span>
@@ -179,13 +205,9 @@ class GamblingPanel {
                             <span class="marquee-bullet">•</span>
                             <span>🎡 FORTUNE WHEEL: PUTARAN BERHADIAH HINGGA 100x</span>
                             <span class="marquee-bullet">•</span>
-                            <span>🏆 GRAND JACKPOT 4D: 100.000.000+ TC</span>
+                            <span>🎣 GOLDEN MARLIN: TARIK IKAN MONSTER SAMUDRA MULTIPLIER 10.000x</span>
                             <span class="marquee-bullet">•</span>
-                            <span>⚡ GATES OF OLYMPUS: MULTIPLIER 500x PETIR ZEUS</span>
-                            <span class="marquee-bullet">•</span>
-                            <span>🀄 MAHJONG WAYS MACAU: TRANSFORMASI NAGA EMAS</span>
-                            <span class="marquee-bullet">•</span>
-                            <span>🎁 VIP FAUCET +5.000.000 TC SETIAP 15 MENIT</span>
+                            <span>🌴 TIKI COCO PLINKO: HUJAN KELAPA EMAS MULTIPLIER 1000x</span>
                         </div>
                     </div>
                 </div>
@@ -286,17 +308,101 @@ class GamblingPanel {
                 </div>
             </div>
 
-            <!-- 3. All Games Showcase (Semua 6 Permainan Terpapar dari Awal!) -->
+            <!-- 3. All Games Showcase (Semua 9 Permainan Terpapar dari Awal!) -->
             <div class="lobby-section lobby-games-section">
                 <div class="lobby-section-header">
                     <div class="section-title-wrap">
                         <span class="section-icon">🎰</span>
                         <h2 class="section-title">SEMUA WAHANA PERMAINAN KASINO</h2>
                     </div>
-                    <span class="section-badge">6 PERMAINAN RESMI</span>
+                    <span class="section-badge">9 PERMAINAN RESMI</span>
                 </div>
 
                 <div class="lobby-showcase-grid">
+                    <!-- 0. Pop Drink! Vending Machine Plinko (New Vending Cooler Theme!) -->
+                    <div class="lobby-game-showcase-card card-popdrink" data-game-id="popdrink">
+                        <div class="showcase-banner">
+                            <span class="showcase-tag tag-popdrink">BARU • VENDING PLINKO</span>
+                            <span class="showcase-rate">RTP 98.5%</span>
+                        </div>
+                        <div class="showcase-body">
+                            <div class="showcase-icon-hero">🥤</div>
+                            <h3 class="showcase-title">Pop Drink! Vending Machine</h3>
+                            <p class="showcase-desc">Sensasi Kulkas Vending Machine Modern dengan Aneka Minuman Segar! Kaleng Soda Mantul Melewati Rak Spiral, Sultan 24K Gold Can 2× Boost, &amp; Payout 1.000×!</p>
+                            <div class="showcase-features">
+                                <span>🥤 Aneka Kaleng Soda &amp; Energy Drink</span>
+                                <span>⭐ Sultan 24K Gold Can (2× Payout)</span>
+                                <span>⚡ Vending Rush &amp; Auto-Vend 1.000×</span>
+                            </div>
+                            <div class="showcase-payout-highlight">
+                                <span class="payout-label">Potensi Kemenangan:</span>
+                                <span class="payout-val">Maxwin 1.000× Bet</span>
+                            </div>
+                        </div>
+                        <div class="showcase-footer">
+                            <button type="button" class="btn-play-showcase" data-game-id="popdrink">
+                                <span class="play-icon">▶</span>
+                                <span>KELUARKAN MINUMAN</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 1. Tiki Coco Drop Plinko (Tropical Theme!) -->
+                    <div class="lobby-game-showcase-card card-plinko" data-game-id="plinko">
+                        <div class="showcase-banner">
+                            <span class="showcase-tag tag-plinko">BARU • TROPICAL PLINKO</span>
+                            <span class="showcase-rate">RTP 98.0%</span>
+                        </div>
+                        <div class="showcase-body">
+                            <div class="showcase-icon-hero">🥥</div>
+                            <h3 class="showcase-title">Tiki Coco Drop Plinko</h3>
+                            <p class="showcase-desc">Pantai Tropis Santai dengan Hujan Buah Kelapa Alami! Tumbukan Fisika Pasak Bambu, Kelapa Emas Pengali 2×, &amp; Cawan Vulkanik 1.000×!</p>
+                            <div class="showcase-features">
+                                <span>🥥 Buah Kelapa Alami</span>
+                                <span>🏝️ Pilihan 8-16 Baris &amp; Risiko</span>
+                                <span>🌧️ Multi-Drop Hujan Kelapa</span>
+                            </div>
+                            <div class="showcase-payout-highlight">
+                                <span class="payout-label">Potensi Kemenangan:</span>
+                                <span class="payout-val">Maxwin 1.000× Bet</span>
+                            </div>
+                        </div>
+                        <div class="showcase-footer">
+                            <button type="button" class="btn-play-showcase" data-game-id="plinko">
+                                <span class="play-icon">▶</span>
+                                <span>JATUHKAN KELAPA</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 1. Golden Marlin: Deep Sea Strike (Featured Fishing Crash!) -->
+                    <div class="lobby-game-showcase-card card-crash" data-game-id="crash">
+                        <div class="showcase-banner">
+                            <span class="showcase-tag tag-crash">HOT • FISHING CRASH</span>
+                            <span class="showcase-rate">RTP 97.0%</span>
+                        </div>
+                        <div class="showcase-body">
+                            <div class="showcase-icon-hero">🎣</div>
+                            <h3 class="showcase-title">Golden Marlin: Deep Sea Strike</h3>
+                            <p class="showcase-desc">Sensasi Mancing Laut Dalam Melawan Monster Samudra! Kail Pancing Bergetar Menarik Ikan Emas, Tentukan Timing Strike Tepat Sebelum Tali Putus!</p>
+                            <div class="showcase-features">
+                                <span>🎣 Multiplier Tarikan Hingga 10.000x</span>
+                                <span>⚡ Joran Pancing Ganda (Multi-Rod)</span>
+                                <span>🐟 Siluet Ikan Laut Dalam &amp; Auto-Strike</span>
+                            </div>
+                            <div class="showcase-payout-highlight">
+                                <span class="payout-label">Potensi Kemenangan:</span>
+                                <span class="payout-val">Maxwin 10.000× Bet</span>
+                            </div>
+                        </div>
+                        <div class="showcase-footer">
+                            <button type="button" class="btn-play-showcase" data-game-id="crash">
+                                <span class="play-icon">▶</span>
+                                <span>LEMPAR KAIL PANCING</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- 1. Goldy Crush -->
                     <div class="lobby-game-showcase-card card-slot" data-game-id="slot">
                         <div class="showcase-banner">
@@ -524,6 +630,8 @@ class GamblingPanel {
             this.mahjong.stopAutoSpin();
             this.zeus.stopAutoSpin();
             this.wheel.stopAutoSpin();
+            if (this.popdrink) this.popdrink.stopAutoDrop();
+            if (this.plinko) this.plinko.stopAutoDrop();
         }
 
         this.activeTab = tabId;
@@ -681,7 +789,13 @@ class GamblingPanel {
             });
         }
 
-        if (this.activeTab === 'slot') {
+        if (this.activeTab === 'popdrink') {
+            this.popdrink.bindEvents(gamePanel, refreshCb);
+        } else if (this.activeTab === 'plinko') {
+            this.plinko.bindEvents(gamePanel, refreshCb);
+        } else if (this.activeTab === 'crash') {
+            this.crash.bindEvents(gamePanel, refreshCb);
+        } else if (this.activeTab === 'slot') {
             this.slot.bindEvents(gamePanel, refreshCb);
         } else if (this.activeTab === 'mahjong') {
             this.mahjong.bindEvents(gamePanel, refreshCb);
@@ -818,6 +932,12 @@ class GamblingPanel {
         if (topHeaderBal) {
             topHeaderBal.textContent = `${formatted} TC`;
             topHeaderBal.title = `Saldo: ${new Intl.NumberFormat('id-ID').format(Math.round(bal))} TC`;
+        }
+
+        const topHeaderSub = document.getElementById('header-chip-compact');
+        if (topHeaderSub) {
+            topHeaderSub.textContent = `≈ ${financeManager.formatCurrency(bal, true)} Chips`;
+            topHeaderSub.title = `Saldo: ${new Intl.NumberFormat('id-ID').format(Math.round(bal))} Chips`;
         }
 
         const sidebarBal = document.getElementById('sidebar-balance-value');

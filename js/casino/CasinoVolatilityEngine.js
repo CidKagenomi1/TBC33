@@ -193,6 +193,27 @@ export class CasinoVolatilityEngine {
     }
 
     /**
+     * Record a direct win across non-slot games (Plinko, Crash, Wheel, etc.)
+     * @param {number} payout Total payout won or multiplier
+     * @param {number} bet Optional bet amount
+     */
+    recordWin(payout = 0, bet = 0) {
+        if (bet > 0) {
+            this.recordOutcome(bet, payout);
+        } else if (payout >= 5.0) {
+            this.recordBigWin();
+        } else {
+            this.winStreak++;
+            this.lossStreak = 0;
+            const luckInfo = this.getLuckInfo();
+            gameState.set('donations', {
+                luckMultiplier: luckInfo.multiplier,
+                luckTicksRemaining: luckInfo.isRateOn ? 999 : 0
+            });
+        }
+    }
+
+    /**
      * Record a direct loss across non-slot games (Lottery, Parlay, Wheel)
      */
     recordLoss() {

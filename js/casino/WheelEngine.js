@@ -623,6 +623,7 @@ export class WheelEngine {
     initWheelGraphic(container) {
         const canvas = container.querySelector('#wheel-pixi-canvas');
         const fallback = container.querySelector('#wheel-svg-fallback');
+        const pointerArrow = container.querySelector('.wheel-pointer-arrow');
         const sectors = this.getActiveSectors();
 
         if (canvas && typeof window !== 'undefined' && window.PIXI) {
@@ -631,14 +632,17 @@ export class WheelEngine {
                 this.pixiWheel = new PixiWheelStage(canvas, sectors, { size: 320 });
                 canvas.style.display = 'block';
                 if (fallback) fallback.style.display = 'none';
+                if (pointerArrow) pointerArrow.style.display = 'none'; // Pixi uses its internal animated flapper
             } catch (err) {
                 console.warn('[WheelEngine] WebGL init fallback:', err);
                 if (canvas) canvas.style.display = 'none';
                 if (fallback) fallback.style.display = 'block';
+                if (pointerArrow) pointerArrow.style.display = 'block';
             }
         } else {
             if (canvas) canvas.style.display = 'none';
             if (fallback) fallback.style.display = 'block';
+            if (pointerArrow) pointerArrow.style.display = 'block';
         }
     }
 
@@ -916,28 +920,33 @@ export class WheelEngine {
         // Spin rotation physics without resetting
         if (this.pixiWheel) {
             await this.pixiWheel.spinTo(selectedIdx, {
-                duration: this.skipRequested ? 0.35 : 4.0
+                duration: this.skipRequested ? 0.35 : null
             });
         } else {
-            const rotationTarget = 360 * 5 + (360 - (selectedIdx * anglePerSector) - (anglePerSector / 2));
-            this.currentRotation += rotationTarget - (this.currentRotation % 360);
+            // Natural landing jitter within the selected wedge (-30% to +30%)
+            const jitter = (Math.random() - 0.5) * (anglePerSector * 0.60);
+            const targetNorm = ((360 - (selectedIdx + 0.5) * anglePerSector + jitter) % 360 + 360) % 360;
+            const curNorm = ((this.currentRotation % 360) + 360) % 360;
+            let delta = ((targetNorm - curNorm + 360) % 360);
+            if (delta < 45) delta += 360;
+
+            const extraSpins = (5 + Math.floor(Math.random() * 3)) * 360;
+            const finalRotation = this.currentRotation + extraSpins + delta;
+            this.currentRotation = finalRotation;
 
             const wheelSvg = document.getElementById('wheel-svg-container');
             if (wheelSvg) {
+                wheelSvg.style.transition = this.skipRequested 
+                    ? 'transform 0.35s cubic-bezier(0.1, 0.8, 0.1, 1)' 
+                    : 'transform 3.8s cubic-bezier(0.12, 0.8, 0.2, 1)';
                 wheelSvg.style.transform = `rotate(${this.currentRotation}deg)`;
             }
 
             let elapsed = 0;
             const checkInterval = 50;
-            while (elapsed < 4000) {
-                if (this.skipRequested) {
-                    if (wheelSvg) {
-                        wheelSvg.style.transition = 'transform 0.2s cubic-bezier(0.1, 0.8, 0.1, 1)';
-                        wheelSvg.style.transform = `rotate(${this.currentRotation}deg)`;
-                    }
-                    await new Promise(res => setTimeout(res, 200));
-                    break;
-                }
+            const targetDuration = this.skipRequested ? 350 : 3800;
+            while (elapsed < targetDuration) {
+                if (this.skipRequested && elapsed > 350) break;
                 await new Promise(res => setTimeout(res, checkInterval));
                 elapsed += checkInterval;
             }
