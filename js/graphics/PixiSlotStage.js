@@ -11,6 +11,76 @@
 
 import AuraSound from '../ui/AuraSound.js';
 
+const SYMBOL_TEXTURE_CACHE = new Map();
+const TEXTURE_PROMISES = new Map();
+
+function getTextureKey(item) {
+    if (!item) return 'default';
+    if (typeof item === 'string') return item;
+    const emoji = item.emoji || '';
+    const gold = item.isGold ? '1' : '0';
+    const wild = item.isWild ? '1' : '0';
+    return `${emoji}_g${gold}_w${wild}`;
+}
+
+function loadSvgTexture(PIXI, svgString, key) {
+    if (SYMBOL_TEXTURE_CACHE.has(key)) {
+        return Promise.resolve(SYMBOL_TEXTURE_CACHE.get(key));
+    }
+    if (TEXTURE_PROMISES.has(key)) {
+        return TEXTURE_PROMISES.get(key);
+    }
+
+    const promise = new Promise((resolve) => {
+        if (typeof window === 'undefined' || !PIXI) {
+            resolve(null);
+            return;
+        }
+
+        let svg = svgString;
+        if (!svg.includes('width=') || !svg.includes('height=')) {
+            svg = svg.replace(/<svg\b([^>]*)>/i, '<svg width="200" height="224" $1>');
+        }
+        if (!svg.includes('xmlns=')) {
+            svg = svg.replace(/<svg\b([^>]*)>/i, '<svg xmlns="http://www.w3.org/2000/svg" $1>');
+        }
+
+        const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                const w = img.naturalWidth || 200;
+                const h = img.naturalHeight || 224;
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                URL.revokeObjectURL(url);
+
+                const texture = PIXI.Texture.from(canvas);
+                SYMBOL_TEXTURE_CACHE.set(key, texture);
+                resolve(texture);
+            } catch (err) {
+                URL.revokeObjectURL(url);
+                resolve(null);
+            }
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(null);
+        };
+
+        img.src = url;
+    });
+
+    TEXTURE_PROMISES.set(key, promise);
+    return promise;
+}
+
 export class PixiSlotStage {
     constructor(canvasElement, options = {}) {
         this.canvas = canvasElement;
@@ -96,9 +166,10 @@ export class PixiSlotStage {
             this.reelContainers.push(reelCont);
             this.reelsSymbols.push([]);
 
-            // Default visible symbols (3 rows + 1 buffer above & below)
+            // Default visible symbols (rows + buffer above & below)
+            const defaultSym = (this.options.symbols && this.options.symbols[0]) || '🀫';
             for (let row = -1; row <= this.options.rows; row++) {
-                const symSprite = this._createSymbolSprite('🪨', this.colWidth, this.rowHeight);
+                const symSprite = this._createSymbolSprite(defaultSym, this.colWidth, this.rowHeight);
                 symSprite.y = row * this.rowHeight;
                 reelCont.addChild(symSprite);
                 this.reelsSymbols[col].push(symSprite);
@@ -117,6 +188,7 @@ export class PixiSlotStage {
         // Handle resize
         this._resizeHandler = () => this.resize();
         window.addEventListener('resize', this._resizeHandler);
+        this.preloadTextures();
     }
 
     _drawDividers(totalW, totalH) {
@@ -135,12 +207,105 @@ export class PixiSlotStage {
         }
     }
 
-    _createSymbolSprite(symbolText, width, height) {
+    async preloadTextures() {
+        if (!this.options.getSymbolSvg || !this.options.symbols || typeof window === 'undefined' || !window.PIXI) return;
+        const PIXI = window.PIXI;
+
+        const promises = [];
+        for (const sym of this.options.symbols) {
+            const rawSvgNorm = this.options.getSymbolSvg({ emoji: sym.emoji, isGold: false, isWild: sym.isWild });
+            if (rawSvgNorm) {
+                promises.push(loadSvgTexture(PIXI, rawSvgNorm, getTextureKey({ emoji: sym.emoji, isGold: false, isWild: sym.isWild })));
+            }
+            const rawSvgGold = this.options.getSymbolSvg({ emoji: sym.emoji, isGold: true, isWild: sym.isWild });
+            if (rawSvgGold) {
+                promises.push(loadSvgTexture(PIXI, rawSvgGold, getTextureKey({ emoji: sym.emoji, isGold: true, isWild: sym.isWild })));
+            }
+        }
+        await Promise.all(promises);
+        this.refreshGrid();
+    }
+
+    refreshGrid() {
+        for (let col = 0; col < this.options.cols; col++) {
+            for (let r = 0; r < this.reelsSymbols[col].length; r++) {
+                const spr = this.reelsSymbols[col][r];
+                if (spr && spr._item) {
+                    this._applySymbolToContainer(spr, spr._item, this.colWidth, this.rowHeight);
+                }
+            }
+        }
+    }
+
+    _applySymbolToContainer(cont, item, width, height) {
+        if (!cont) return;
+        cont._item = item;
+        const emoji = typeof item === 'object' ? item.emoji : item;
+        const isGold = typeof item === 'object' ? item.isGold : false;
+        const isWild = typeof item === 'object' ? item.isWild : (emoji === '🐉');
+        cont._label = emoji;
+
+        const key = getTextureKey(item);
+        const texture = SYMBOL_TEXTURE_CACHE.get(key);
+
+        if (texture && texture.width > 1) {
+            cont._spriteNode.texture = texture;
+            const padW = width * 0.94;
+            const padH = height * 0.94;
+            const scale = Math.min(padW / texture.width, padH / texture.height);
+            cont._spriteNode.scale.set(scale);
+            cont._spriteNode.visible = true;
+            cont._textNode.visible = false;
+        } else {
+            if (this.options.getSymbolSvg && window.PIXI) {
+                const svgString = this.options.getSymbolSvg(item);
+                if (svgString) {
+                    loadSvgTexture(window.PIXI, svgString, key).then((tex) => {
+                        if (tex && cont._item === item) {
+                            cont._spriteNode.texture = tex;
+                            const padW = width * 0.94;
+                            const padH = height * 0.94;
+                            const scale = Math.min(padW / tex.width, padH / tex.height);
+                            cont._spriteNode.scale.set(scale);
+                            cont._spriteNode.visible = true;
+                            cont._textNode.visible = false;
+                        }
+                    });
+                }
+            }
+
+            cont._textNode.text = emoji;
+            if (isWild) {
+                cont._textNode.style.dropShadowColor = '#fbbf24';
+                cont._textNode.style.dropShadowBlur = 14;
+            } else if (isGold) {
+                cont._textNode.style.dropShadowColor = '#f59e0b';
+                cont._textNode.style.dropShadowBlur = 10;
+            } else {
+                cont._textNode.style.dropShadowColor = '#000000';
+                cont._textNode.style.dropShadowBlur = 8;
+            }
+            cont._textNode.visible = true;
+            cont._spriteNode.visible = false;
+        }
+    }
+
+    _createSymbolSprite(symbolItem, width, height) {
         const PIXI = window.PIXI;
         const cont = new PIXI.Container();
 
+        // 1. Vector Sprite Node
+        const sprite = new PIXI.Sprite();
+        sprite.anchor.set(0.5);
+        sprite.x = width / 2;
+        sprite.y = height / 2;
+        sprite.visible = false;
+        cont.addChild(sprite);
+        cont._spriteNode = sprite;
+
+        // 2. Text Node Fallback
         const fontSize = Math.min(width * 0.58, height * 0.58, 68);
-        const text = new PIXI.Text(symbolText, {
+        const text = new PIXI.Text('', {
             fontFamily: 'Outfit, Segoe UI Emoji, Apple Color Emoji, sans-serif',
             fontSize: fontSize,
             align: 'center',
@@ -152,10 +317,10 @@ export class PixiSlotStage {
         text.anchor.set(0.5);
         text.x = width / 2;
         text.y = height / 2;
-
         cont.addChild(text);
-        cont._label = symbolText;
         cont._textNode = text;
+
+        this._applySymbolToContainer(cont, symbolItem, width, height);
         return cont;
     }
 
@@ -165,32 +330,18 @@ export class PixiSlotStage {
     setGrid(matrix) {
         for (let col = 0; col < this.options.cols; col++) {
             for (let row = 0; row < this.options.rows; row++) {
-                const item = matrix[col]?.[row] || '🪨';
-                const emoji = typeof item === 'object' ? item.emoji : item;
-                const isGold = typeof item === 'object' ? item.isGold : false;
-                const isWild = typeof item === 'object' ? item.isWild : (emoji === '🐉');
+                const item = matrix[col]?.[row] || '🀫';
                 // Row index in internal reel is row + 1 (because index 0 is buffer row -1)
-                const sprite = this.reelsSymbols[col][row + 1];
-                if (sprite && sprite._textNode) {
-                    sprite._textNode.text = emoji;
-                    sprite._label = emoji;
-                    if (isWild) {
-                        sprite._textNode.style.dropShadowColor = '#fbbf24';
-                        sprite._textNode.style.dropShadowBlur = 14;
-                    } else if (isGold) {
-                        sprite._textNode.style.dropShadowColor = '#f59e0b';
-                        sprite._textNode.style.dropShadowBlur = 10;
-                    } else {
-                        sprite._textNode.style.dropShadowColor = '#000000';
-                        sprite._textNode.style.dropShadowBlur = 8;
-                    }
+                const sprite = this.reelsSymbols[col]?.[row + 1];
+                if (sprite) {
+                    this._applySymbolToContainer(sprite, item, this.colWidth, this.rowHeight);
                 }
             }
         }
     }
 
     /**
-     * Spin all 6 reels with GSAP timelines, anticipation, blur, and staggered stops
+     * Spin all reels with GSAP timelines, anticipation, blur, and staggered stops
      */
     spin(finalMatrix, { isSpeedUp = false, skipRequested = false } = {}) {
         const gsap = this._getGSAP();
@@ -249,9 +400,9 @@ export class PixiSlotStage {
                         // Rapidly randomize buffer symbols during spin
                         for (let r = 0; r < this.reelsSymbols[col].length; r++) {
                             const spr = this.reelsSymbols[col][r];
-                            if (spr._textNode && Math.random() > 0.6) {
-                                const randomSymbol = this.options.symbols[Math.floor(Math.random() * this.options.symbols.length)]?.emoji || '💎';
-                                spr._textNode.text = randomSymbol;
+                            if (spr && Math.random() > 0.6) {
+                                const randomSymbol = this.options.symbols[Math.floor(Math.random() * this.options.symbols.length)] || { emoji: '🀫' };
+                                this._applySymbolToContainer(spr, randomSymbol, this.colWidth, this.rowHeight);
                             }
                         }
                     }
@@ -262,11 +413,9 @@ export class PixiSlotStage {
                     // Set final symbols right before bounce
                     for (let row = 0; row < this.options.rows; row++) {
                         const spr = this.reelsSymbols[col][row + 1];
-                        if (spr && spr._textNode) {
+                        if (spr) {
                             const raw = finalColSymbols[row];
-                            const sym = typeof raw === 'object' ? raw.emoji : raw;
-                            spr._textNode.text = sym;
-                            spr._label = sym;
+                            this._applySymbolToContainer(spr, raw, this.colWidth, this.rowHeight);
                         }
                     }
                     reel.y = -this.rowHeight * 0.8;
@@ -459,6 +608,14 @@ export class PixiSlotStage {
                     spr._textNode.y = this.rowHeight / 2;
                     spr._textNode.style.fontSize = fontSize;
                 }
+                if (spr._spriteNode && spr._spriteNode.texture && spr._spriteNode.texture.width > 1) {
+                    spr._spriteNode.x = this.colWidth / 2;
+                    spr._spriteNode.y = this.rowHeight / 2;
+                    const padW = this.colWidth * 0.94;
+                    const padH = this.rowHeight * 0.94;
+                    const scale = Math.min(padW / spr._spriteNode.texture.width, padH / spr._spriteNode.texture.height);
+                    spr._spriteNode.scale.set(scale);
+                }
             }
         }
 
@@ -469,7 +626,7 @@ export class PixiSlotStage {
         window.removeEventListener('resize', this._resizeHandler);
         this.clearHighlights();
         if (this.app) {
-            this.app.destroy(true, { children: true, texture: true, baseTexture: true });
+            this.app.destroy(true, { children: true, texture: false, baseTexture: false });
             this.app = null;
         }
     }

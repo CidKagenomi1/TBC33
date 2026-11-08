@@ -107,59 +107,82 @@ class PixiEffects {
                 position: relative;
                 z-index: 2;
                 text-align: center;
-                padding: 2.5rem 3.5rem;
-                background: linear-gradient(180deg, rgba(22, 17, 13, 0.95) 0%, rgba(10, 8, 6, 0.98) 100%);
-                border: 3.5px solid ${initialTheme.borderColor};
-                border-radius: 28px;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 50px ${initialTheme.glow}66, inset 0 0 35px rgba(0,0,0,0.85);
-                max-width: 90vw;
+                padding: clamp(1.25rem, 4vw, 2.25rem) clamp(1rem, 3.5vw, 2rem);
+                background: linear-gradient(180deg, rgba(22, 17, 13, 0.96) 0%, rgba(10, 8, 6, 0.98) 100%);
+                border: 3px solid ${initialTheme.borderColor};
+                border-radius: 24px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 45px ${initialTheme.glow}66, inset 0 0 35px rgba(0,0,0,0.85);
+                width: 90vw;
+                max-width: 480px;
+                box-sizing: border-box;
                 transform: scale(0.6);
                 opacity: 0;
                 transition: border-color 0.3s ease, box-shadow 0.3s ease;
+                overflow: hidden;
             ">
                 <div id="win-fx-badge" style="
                     font-family: var(--font-display, 'Russo One', sans-serif);
-                    font-size: clamp(2.2rem, 5.5vw, 4.2rem);
+                    font-size: clamp(1.35rem, 4.8vw, 2.5rem);
                     font-weight: 400;
-                    letter-spacing: 0.08em;
+                    line-height: 1.15;
+                    letter-spacing: 0.05em;
                     background: ${initialTheme.gradient};
                     -webkit-background-clip: text;
+                    background-clip: text;
                     -webkit-text-fill-color: transparent;
-                    filter: drop-shadow(0 2px 0 rgba(0,0,0,0.95)) drop-shadow(0 4px 8px rgba(0,0,0,0.95)) drop-shadow(0 0 28px ${initialTheme.glow});
-                    margin-bottom: 0.5rem;
+                    filter: drop-shadow(0 2px 0 rgba(0,0,0,0.95)) drop-shadow(0 4px 8px rgba(0,0,0,0.95)) drop-shadow(0 0 24px ${initialTheme.glow});
+                    margin-bottom: 0.35rem;
                     text-transform: uppercase;
+                    word-break: normal;
+                    white-space: normal;
                     transition: all 0.3s ease;
                 ">${initialTheme.title}</div>
                 
-                <div style="font-family: var(--font-heading, sans-serif); font-size: 0.85rem; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; margin-bottom: 0.4rem;">
+                <div style="font-family: var(--font-heading, sans-serif); font-size: 0.75rem; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; margin-bottom: 0.35rem;">
                     TOTAL KEMENANGAN
                 </div>
 
-                <div id="win-fx-counter" style="
-                    font-family: var(--font-num, 'Rajdhani', sans-serif);
-                    font-size: clamp(2.8rem, 6.8vw, 5rem);
-                    font-weight: 700;
-                    letter-spacing: 0.04em;
-                    color: #fff;
-                    filter: drop-shadow(0 2px 0 rgba(0,0,0,0.95)) drop-shadow(0 4px 10px rgba(0,0,0,0.9)) drop-shadow(0 0 25px #fbbf24);
-                    margin-bottom: 1.5rem;
-                ">0 TC</div>
+                <div id="win-fx-counter-wrapper" style="margin-bottom: 1.25rem;">
+                    <div id="win-fx-counter" style="
+                        font-family: var(--font-num, 'Rajdhani', sans-serif);
+                        font-size: clamp(1.6rem, 6.2vw, 3.6rem);
+                        font-weight: 800;
+                        line-height: 1.1;
+                        letter-spacing: 0.03em;
+                        color: #fff;
+                        filter: drop-shadow(0 2px 0 rgba(0,0,0,0.95)) drop-shadow(0 4px 10px rgba(0,0,0,0.9)) drop-shadow(0 0 25px #fbbf24);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        padding: 0 0.25rem;
+                    ">0</div>
+                    <div style="font-family: var(--font-heading, sans-serif); font-size: clamp(0.78rem, 2.8vw, 1.05rem); font-weight: 900; color: #fbbf24; letter-spacing: 0.12em; margin-top: 2px;">
+                        TC (TRILIUN CHIP)
+                    </div>
+                </div>
 
                 <button id="win-fx-collect-btn" style="
                     font-family: var(--font-display, 'Russo One', sans-serif);
-                    font-size: 1.2rem;
+                    font-size: clamp(0.95rem, 3.2vw, 1.15rem);
                     font-weight: 400;
                     text-transform: uppercase;
-                    letter-spacing: 0.08em;
-                    padding: 0.9rem 2.8rem;
+                    letter-spacing: 0.06em;
+                    padding: 0.65rem 1.8rem;
                     border-radius: 999px;
-                    border: 2px solid rgba(255, 255, 255, 0.8);
+                    border: 2px solid rgba(255, 255, 255, 0.85);
                     background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
                     color: #000;
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 30px rgba(251, 191, 36, 0.7), inset 0 2px 2px rgba(255,255,255,0.7);
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 24px rgba(251, 191, 36, 0.6), inset 0 2px 2px rgba(255,255,255,0.7);
                     cursor: pointer;
+                    white-space: nowrap;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.4rem;
+                    max-width: 90%;
+                    box-sizing: border-box;
                     transition: transform 0.15s, box-shadow 0.15s;
-                ">💰 KLAIM TC</button>
+                "><span>💰</span> <span>KLAIM TC</span></button>
             </div>
         `;
 
@@ -228,7 +251,7 @@ class PixiEffects {
                 ease: 'power2.out',
                 onUpdate: () => {
                     const formatted = financeManager.formatCurrency(Math.floor(counterObj.value));
-                    if (counterEl) counterEl.textContent = `${formatted} TC`;
+                    if (counterEl) counterEl.textContent = formatted;
 
                     const currentRatio = counterObj.value / effectiveBet;
 
@@ -283,7 +306,7 @@ class PixiEffects {
         } else {
             card.style.opacity = '1';
             card.style.transform = 'scale(1)';
-            if (counterEl) counterEl.textContent = `${financeManager.formatCurrency(amount)} TC`;
+            if (counterEl) counterEl.textContent = financeManager.formatCurrency(amount);
         }
     }
 

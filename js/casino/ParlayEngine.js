@@ -1,8 +1,11 @@
 /**
- * ParlayEngine.js - Parlay Bet Casino Engine
- * Allows players to chain multiple bets (Football, Horse Racing, Random Bets) 
- * into a single high-yielding parlay card.
- * Integrates 100 real European football clubs dynamically.
+ * ParlayEngine.js - European Football Parlay Sportsbook Terminal
+ * Refactored VIP Sports Betting Engine:
+ * - 100% Football Focused (Top European Leagues & Clubs)
+ * - Multiple Betting Markets: 1X2, Over/Under 2.5 Goals, Both Teams To Score (BTTS)
+ * - Authentic Parlay Multiplier Formula: Total Odds = Product of all selected legs (Odds1 * Odds2 * ...)
+ * - Live Matchday Simulation Broadcast: Real-time minute-by-minute score updates, goal alerts & commentary
+ * - Modern Sportsbook Slip UI with instant potential payout calculations
  */
 
 import financeManager from '../finance/FinanceManager.js';
@@ -10,488 +13,1036 @@ import gameState from '../core/GameState.js';
 import ui from '../ui/UIManager.js';
 import pixiEffects from '../graphics/PixiEffects.js';
 
-const CLUBS = [
-    { name: "Manchester United", country: "Inggris", emoji: "🔴" },
-    { name: "Manchester City", country: "Inggris", emoji: "🔵" },
-    { name: "Arsenal", country: "Inggris", emoji: "🔴" },
-    { name: "Liverpool", country: "Inggris", emoji: "🔴" },
-    { name: "Aston Villa", country: "Inggris", emoji: "🦁" },
-    { name: "Chelsea", country: "Inggris", emoji: "🔵" },
-    { name: "Tottenham Hotspur", country: "Inggris", emoji: "⚪" },
-    { name: "Newcastle United", country: "Inggris", emoji: "⚫" },
-    { name: "West Ham United", country: "Inggris", emoji: "⚒️" },
-    { name: "Brighton & Hove Albion", country: "Inggris", emoji: "🔵" },
-    { name: "Real Madrid", country: "Spanyol", emoji: "⚪" },
-    { name: "Barcelona", country: "Spanyol", emoji: "🔵" },
-    { name: "Atletico Madrid", country: "Spanyol", emoji: "🔴" },
-    { name: "Girona", country: "Spanyol", emoji: "🔴" },
-    { name: "Athletic Bilbao", country: "Spanyol", emoji: "🔴" },
-    { name: "Real Sociedad", country: "Spanyol", emoji: "🔵" },
-    { name: "Real Betis", country: "Spanyol", emoji: "🟢" },
-    { name: "Sevilla", country: "Spanyol", emoji: "⚪" },
-    { name: "Villarreal", country: "Spanyol", emoji: "🟡" },
-    { name: "Valencia", country: "Spanyol", emoji: "🦇" },
-    { name: "Inter Milan", country: "Italia", emoji: "🔵" },
-    { name: "AC Milan", country: "Italia", emoji: "🔴" },
-    { name: "Juventus", country: "Italia", emoji: "⚪" },
-    { name: "Atalanta", country: "Italia", emoji: "🔵" },
-    { name: "Bologna", country: "Italia", emoji: "🔴" },
-    { name: "AS Roma", country: "Italia", emoji: "🟡" },
-    { name: "Lazio", country: "Italia", emoji: "🦅" },
-    { name: "Napoli", country: "Italia", emoji: "🔵" },
-    { name: "Fiorentina", country: "Italia", emoji: "🟣" },
-    { name: "Torino", country: "Italia", emoji: "🐂" },
-    { name: "Bayer Leverkusen", country: "Jerman", emoji: "🔴" },
-    { name: "Bayern Munchen", country: "Jerman", emoji: "🔴" },
-    { name: "VfB Stuttgart", country: "Jerman", emoji: "⚪" },
-    { name: "RB Leipzig", country: "Jerman", emoji: "🔴" },
-    { name: "Borussia Dortmund", country: "Jerman", emoji: "🟡" },
-    { name: "Eintracht Frankfurt", country: "Jerman", emoji: "🦅" },
-    { name: "Hoffenheim", country: "Jerman", emoji: "🔵" },
-    { name: "Freiburg", country: "Jerman", emoji: "🔴" },
-    { name: "Werder Bremen", country: "Jerman", emoji: "🟢" },
-    { name: "Heidenheim", country: "Jerman", emoji: "🔴" },
-    { name: "Paris Saint-Germain", country: "Prancis", emoji: "🔵" },
-    { name: "AS Monaco", country: "Prancis", emoji: "🔴" },
-    { name: "Lille", country: "Prancis", emoji: "🔴" },
-    { name: "Brest", country: "Prancis", emoji: "🔴" },
-    { name: "Nice", country: "Prancis", emoji: "🔴" },
-    { name: "Lyon", country: "Prancis", emoji: "🔵" },
-    { name: "Lens", country: "Prancis", emoji: "🟡" },
-    { name: "Marseille", country: "Prancis", emoji: "🔵" },
-    { name: "Rennes", country: "Prancis", emoji: "🔴" },
-    { name: "Reims", country: "Prancis", emoji: "🔴" },
-    { name: "PSV Eindhoven", country: "Belanda", emoji: "🔴" },
-    { name: "Feyenoord", country: "Belanda", emoji: "🔴" },
-    { name: "Twente", country: "Belanda", emoji: "🔴" },
-    { name: "AZ Alkmaar", country: "Belanda", emoji: "🔴" },
-    { name: "Ajax Amsterdam", country: "Belanda", emoji: "⚪" },
-    { name: "Utrecht", country: "Belanda", emoji: "🔴" },
-    { name: "Go Ahead Eagles", country: "Belanda", emoji: "🔴" },
-    { name: "Sparta Rotterdam", country: "Belanda", emoji: "🔴" },
-    { name: "Sporting Lisbon", country: "Portugal", emoji: "🟢" },
-    { name: "Benfica", country: "Portugal", emoji: "🔴" },
-    { name: "FC Porto", country: "Portugal", emoji: "🔵" },
-    { name: "Braga", country: "Portugal", emoji: "🔴" },
-    { name: "Vitoria de Guimaraes", country: "Portugal", emoji: "⚪" },
-    { name: "Moreirense", country: "Portugal", emoji: "🟢" },
-    { name: "Club Brugge", country: "Belgia", emoji: "🔵" },
-    { name: "Union Saint-Gilloise", country: "Belgia", emoji: "🟡" },
-    { name: "Anderlecht", country: "Belgia", emoji: "🟣" },
-    { name: "Genk", country: "Belgia", emoji: "🔵" },
-    { name: "Antwerp", country: "Belgia", emoji: "🔴" },
-    { name: "Cercle Brugge", country: "Belgia", emoji: "🟢" },
-    { name: "Galatasaray", country: "Turki", emoji: "🟡" },
-    { name: "Fenerbahce", country: "Turki", emoji: "🟡" },
-    { name: "Trabzonspor", country: "Turki", emoji: "🔵" },
-    { name: "Besiktas", country: "Turki", emoji: "🦅" },
-    { name: "Istanbul Basaksehir", country: "Turki", emoji: "🟠" },
-    { name: "Celtic", country: "Skotlandia", emoji: "🟢" },
-    { name: "Rangers", country: "Skotlandia", emoji: "🔵" },
-    { name: "Red Bull Salzburg", country: "Austria", emoji: "🔴" },
-    { name: "Sturm Graz", country: "Austria", emoji: "⚫" },
-    { name: "Young Boys", country: "Swiss", emoji: "🟡" },
-    { name: "Servette", country: "Swiss", emoji: "🔴" },
-    { name: "Sparta Praha", country: "Ceko", emoji: "🔴" },
-    { name: "Slavia Praha", country: "Ceko", emoji: "🔴" },
-    { name: "Viktoria Plzen", country: "Ceko", emoji: "🔴" },
-    { name: "PAOK", country: "Yunani", emoji: "⚫" },
-    { name: "AEK Athena", country: "Yunani", emoji: "🟡" },
-    { name: "Olympiacos", country: "Yunani", emoji: "🔴" },
-    { name: "Panathinaikos", country: "Yunani", emoji: "🟢" },
-    { name: "FC Copenhagen", country: "Danmark", emoji: "⚪" },
-    { name: "Midtjylland", country: "Danmark", emoji: "🔴" },
-    { name: "Brondby", country: "Danmark", emoji: "🟡" },
-    { name: "Bodø/Glimt", country: "Norwegia", emoji: "🟡" },
-    { name: "Molde", country: "Norwegia", emoji: "🔵" },
-    { name: "Malmo FF", country: "Swedia", emoji: "🔵" },
-    { name: "Shakhtar Donetsk", country: "Ukraina", emoji: "🟠" },
-    { name: "Dynamo Kyiv", country: "Ukraina", emoji: "🔵" },
-    { name: "Dinamo Zagreb", country: "Kroasia", emoji: "🔵" },
-    { name: "Rijeka", country: "Kroasia", emoji: "🔵" },
-    { name: "Red Star Belgrade", country: "Serbia", emoji: "🔴" },
-    { name: "Partizan Belgrade", country: "Serbia", emoji: "⚫" }
+const LEAGUES = [
+    { id: 'all', name: 'Semua Liga', emoji: '🌍' },
+    { id: 'ucl', name: 'Champions League', emoji: '🏆' },
+    { id: 'epl', name: 'Premier League', emoji: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+    { id: 'laliga', name: 'La Liga', emoji: '🇪🇸' },
+    { id: 'seriea', name: 'Serie A', emoji: '🇮🇹' },
+    { id: 'bundesliga', name: 'Bundesliga', emoji: '🇩🇪' }
 ];
 
-const HORSES = [
-    { name: '🐎 Red Fury', odds: 2.5, winChance: 0.35, color: '#ef4444' },
-    { name: '🐎 Thunder', odds: 4.5, winChance: 0.20, color: '#3b82f6' },
-    { name: '🐎 Wind Runner', odds: 6.0, winChance: 0.15, color: '#10b981' },
-    { name: '🐎 Star Gold', odds: 10.0, winChance: 0.09, color: '#fbbf24' },
-    { name: '🐎 Slow Jack', odds: 18.0, winChance: 0.05, color: '#6b7280' }
+const CLUBS_BY_LEAGUE = {
+    ucl: [
+        { name: "Real Madrid", flag: "🇪🇸", emoji: "⚪", power: 92 },
+        { name: "Manchester City", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "🔵", power: 93 },
+        { name: "Bayern Munchen", flag: "🇩🇪", emoji: "🔴", power: 90 },
+        { name: "Paris Saint-Germain", flag: "🇫🇷", emoji: "🔵", power: 88 },
+        { name: "Inter Milan", flag: "🇮🇹", emoji: "⚫", power: 89 },
+        { name: "Arsenal", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "🔴", power: 89 }
+    ],
+    epl: [
+        { name: "Arsenal", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "🔴", power: 89 },
+        { name: "Manchester City", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "🔵", power: 93 },
+        { name: "Liverpool", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "🔴", power: 90 },
+        { name: "Chelsea", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "🔵", power: 84 },
+        { name: "Manchester United", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "🔴", power: 82 },
+        { name: "Aston Villa", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "🦁", power: 83 },
+        { name: "Tottenham Hotspur", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", emoji: "⚪", power: 83 }
+    ],
+    laliga: [
+        { name: "Real Madrid", flag: "🇪🇸", emoji: "⚪", power: 92 },
+        { name: "Barcelona", flag: "🇪🇸", emoji: "🔵", power: 90 },
+        { name: "Atletico Madrid", flag: "🇪🇸", emoji: "🔴", power: 87 },
+        { name: "Athletic Bilbao", flag: "🇪🇸", emoji: "🔴", power: 82 },
+        { name: "Real Sociedad", flag: "🇪🇸", emoji: "🔵", power: 81 },
+        { name: "Villarreal", flag: "🇪🇸", emoji: "🟡", power: 80 }
+    ],
+    seriea: [
+        { name: "Inter Milan", flag: "🇮🇹", emoji: "⚫", power: 89 },
+        { name: "AC Milan", flag: "🇮🇹", emoji: "🔴", power: 85 },
+        { name: "Juventus", flag: "🇮🇹", emoji: "⚪", power: 86 },
+        { name: "Atalanta", flag: "🇮🇹", emoji: "🔵", power: 84 },
+        { name: "AS Roma", flag: "🇮🇹", emoji: "🟡", power: 82 },
+        { name: "Napoli", flag: "🇮🇹", emoji: "🔵", power: 85 }
+    ],
+    bundesliga: [
+        { name: "Bayer Leverkusen", flag: "🇩🇪", emoji: "🔴", power: 90 },
+        { name: "Bayern Munchen", flag: "🇩🇪", emoji: "🔴", power: 90 },
+        { name: "Borussia Dortmund", flag: "🇩🇪", emoji: "🟡", power: 86 },
+        { name: "RB Leipzig", flag: "🇩🇪", emoji: "🔴", power: 85 },
+        { name: "VfB Stuttgart", flag: "🇩🇪", emoji: "⚪", power: 83 },
+        { name: "Eintracht Frankfurt", flag: "🇩🇪", emoji: "🦅", power: 81 }
+    ]
+};
+
+const MATCH_COMMENTARY = [
+    { minute: "12'", text: "Tendangan bebas melengkung tipis di samping tiang gawang!" },
+    { minute: "24'", text: "Serangan balik cepat menusuk pertahanan lawan!" },
+    { minute: "38'", text: "Penyelamatan akrobatik fantastis dari sang kiper!" },
+    { minute: "53'", text: "Sundulan tajam membentur mistar gawang!" },
+    { minute: "68'", text: "Tekel bersih di kotak penalti menyelamatkan situasi genting!" },
+    { minute: "79'", text: "Kemelut di mulut gawang, pertahanan berjibaku membuang bola!" },
+    { minute: "89'", text: "Tendangan voli spekulatif dari luar kotak penalti!" }
 ];
 
 export class ParlayEngine {
     constructor(onBalanceRefresh) {
         this.onBalanceRefresh = onBalanceRefresh;
-        this.selectedLegs = []; // Array of { id, type, label, prediction, odds }
+        this.selectedLegs = []; // Array of { matchId, market, pick, label, odds }
+        this.activeLeagueFilter = 'all';
         this.isSimulating = false;
         this.simLegStates = [];
         this.simResult = null; // 'win' | 'lose' | null
         this.simWinAmount = 0;
         this.simBetAmount = 0;
+        this.simCurrentMinute = 0;
+        this.simFeed = [];
         this.matches = [];
-        this.generateMatches();
+        this.generateFixtureList();
     }
 
-    generateMatches() {
+    generateFixtureList() {
         this.matches = [];
-        const shuffled = [...CLUBS].sort(() => 0.5 - Math.random());
-        for (let i = 0; i < 3; i++) {
-            const home = shuffled[i * 2];
-            const away = shuffled[i * 2 + 1];
-            
-            const homeOdds = parseFloat((Math.random() * 1.3 + 1.5).toFixed(2));
-            const drawOdds = parseFloat((Math.random() * 0.8 + 2.8).toFixed(2));
-            const awayOdds = parseFloat((Math.random() * 1.4 + 1.7).toFixed(2));
+        const allLeagueKeys = ['ucl', 'epl', 'laliga', 'seriea', 'bundesliga'];
 
-            this.matches.push({
-                id: `fb_${i}_${Date.now()}`,
-                home: `${home.emoji} ${home.name} (${home.country})`,
-                away: `${away.emoji} ${away.name} (${away.country})`,
-                odds: { home: homeOdds, draw: drawOdds, away: awayOdds }
-            });
-        }
+        allLeagueKeys.forEach(leagueKey => {
+            const leagueMeta = LEAGUES.find(l => l.id === leagueKey);
+            const clubs = [...CLUBS_BY_LEAGUE[leagueKey]].sort(() => 0.5 - Math.random());
+            
+            // Pick pairs
+            for (let i = 0; i < Math.floor(clubs.length / 2); i++) {
+                const home = clubs[i * 2];
+                const away = clubs[i * 2 + 1];
+
+                const powerDiff = home.power - away.power;
+                
+                // Realistic odds based on power difference
+                let homeOdds = Math.max(1.30, parseFloat((2.20 - powerDiff * 0.08 + (Math.random() * 0.2 - 0.1)).toFixed(2)));
+                let drawOdds = parseFloat((3.10 + Math.random() * 0.50).toFixed(2));
+                let awayOdds = Math.max(1.40, parseFloat((2.50 + powerDiff * 0.08 + (Math.random() * 0.2 - 0.1)).toFixed(2)));
+
+                // Over / Under 2.5 Goals
+                const overOdds = parseFloat((1.70 + Math.random() * 0.35).toFixed(2));
+                const underOdds = parseFloat((1.80 + Math.random() * 0.35).toFixed(2));
+
+                // Both Teams To Score (BTTS)
+                const bttsYesOdds = parseFloat((1.75 + Math.random() * 0.30).toFixed(2));
+                const bttsNoOdds = parseFloat((1.85 + Math.random() * 0.30).toFixed(2));
+
+                this.matches.push({
+                    id: `fix_${leagueKey}_${i}_${Date.now()}`,
+                    leagueId: leagueKey,
+                    leagueName: leagueMeta.name,
+                    leagueEmoji: leagueMeta.emoji,
+                    home: home,
+                    away: away,
+                    odds: {
+                        home: homeOdds,
+                        draw: drawOdds,
+                        away: awayOdds,
+                        over: overOdds,
+                        under: underOdds,
+                        bttsYes: bttsYesOdds,
+                        bttsNo: bttsNoOdds
+                    }
+                });
+            }
+        });
     }
 
     getRateStatusHTML() {
         const plays = gameState.get('casino.ratePlays') || 0;
         const rateOn = plays >= 250;
         return rateOn 
-            ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.75rem; padding:0.25rem 0.6rem; border-radius:999px; box-shadow:0 0 10px rgba(239,68,68,0.5); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem; border: 1.5px solid #fff;">⚡ RATE ON (JACKPOT UP!)</div>`
-            : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.6); font-weight:800; font-size:0.7rem; padding:0.2rem 0.5rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem;">Rate: OFF (${plays}/250 Spins)</div>`;
+            ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.35rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.75rem; padding:0.3rem 0.75rem; border-radius:999px; box-shadow:0 0 14px rgba(239,68,68,0.6); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; letter-spacing:0.06em; border: 1.5px solid #fff;">⚡ RATE ON (PREDIKSI FAVORIT AKURAT!)</div>`
+            : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.35rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.65); font-weight:800; font-size:0.72rem; padding:0.25rem 0.6rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.06em;">⚡ RATE: OFF (${plays}/250 SPINS)</div>`;
     }
 
-    renderScoreboardRows() {
-        if (!this.simLegStates || this.simLegStates.length === 0) return '';
-        return this.simLegStates.map((leg, index) => {
-            let statusIcon = '⏳';
-            let statusText = 'MENUNGGU';
-            let statusColor = 'rgba(255,255,255,0.3)';
-            
-            if (leg.status === 'simulating') {
-                statusIcon = '🔄';
-                statusText = 'LIVE';
-                statusColor = '#fbbf24';
-            } else if (leg.status === 'won') {
-                statusIcon = '🟢';
-                statusText = 'TEMBUS';
-                statusColor = '#10b981';
-            } else if (leg.status === 'lost') {
-                statusIcon = '🔴';
-                statusText = 'GAGAL';
-                statusColor = '#ef4444';
+    calculateTotalMultiplier() {
+        if (this.selectedLegs.length === 0) return 0.0;
+        // True Parlay: Product of all leg odds
+        const total = this.selectedLegs.reduce((acc, leg) => acc * leg.odds, 1.0);
+        return parseFloat(total.toFixed(2));
+    }
+
+    isLegSelected(matchId, market, pick) {
+        return this.selectedLegs.some(l => l.matchId === matchId && l.market === market && l.pick === pick);
+    }
+
+    addOrToggleLeg(matchId, market, pick, label, odds) {
+        // Find existing bet for the same match (can only bet 1 market per match in standard parlay)
+        const existingIdx = this.selectedLegs.findIndex(l => l.matchId === matchId);
+        
+        if (existingIdx !== -1) {
+            const existing = this.selectedLegs[existingIdx];
+            if (existing.market === market && existing.pick === pick) {
+                // Deselect
+                this.selectedLegs.splice(existingIdx, 1);
+                return;
+            } else {
+                // Replace market pick for same match
+                this.selectedLegs.splice(existingIdx, 1);
             }
-
-            return `
-                <div style="display:flex; flex-direction:column; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.05); padding:0.75rem; border-radius:8px; gap:0.25rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.65rem; color:#a855f7; font-weight:800; text-transform:uppercase;">LEG ${index + 1} - ${leg.type.toUpperCase()}</span>
-                        <div style="display:flex; align-items:center; gap:0.25rem; font-size:0.65rem; font-weight:900; color:${statusColor}; background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:4px;">
-                            <span>${statusIcon}</span>
-                            <span>${statusText}</span>
-                        </div>
-                    </div>
-                    <div style="font-size:0.85rem; font-weight:800; color:#fff;">${leg.label}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-                        <span style="font-size:0.72rem; color:rgba(255,255,255,0.5);">Pilihan: <strong style="color:#fbbf24;">${leg.prediction.toUpperCase()}</strong> (${leg.odds.toFixed(2)}x)</span>
-                        <span style="font-family:monospace; color:#fff; font-weight:900; font-size:0.95rem;">${leg.details}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    renderSimulationSummary() {
-        if (this.simResult === null) {
-            return `
-                <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-top:0.75rem; color:#fbbf24; font-size:0.8rem; font-weight:800; background:rgba(251,191,36,0.08); padding:0.6rem; border-radius:6px; border:1px solid rgba(251,191,36,0.15);">
-                    <div class="spinner" style="border: 2px solid rgba(255,255,255,0.1); border-top: 2px solid #fbbf24; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite;"></div>
-                    <span>Simulasi pertandingan sedang berjalan...</span>
-                </div>
-            `;
         }
 
-        if (this.simResult === 'win') {
-            return `
-                <div style="margin-top:0.75rem; text-align:center; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:1rem; border-radius:8px; animation: popIn 0.3s ease-out;">
-                    <div style="font-size:1.5rem; margin-bottom:0.25rem;">🎉</div>
-                    <h4 style="margin:0; font-size:1.1rem; font-weight:900; color:#10b981;">HASIL MULTI-BET</h4>
-                    <p style="margin:4px 0 0 0; font-size:0.8rem; color:rgba(255,255,255,0.7);">
-                        Anda memenangkan hadiah sebesar <strong style="color:#fbbf24; font-size:0.95rem;">+$ ${this.simWinAmount.toLocaleString()}</strong>!
-                    </p>
-                </div>
-            `;
+        if (this.selectedLegs.length >= 6) {
+            ui.toast({ type: 'warning', title: 'Limit Parlay', message: 'Maksimal 6 pertandingan per tiket Parlay!' });
+            return;
         }
 
-        return `
-            <div style="margin-top:0.75rem; text-align:center; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); padding:1rem; border-radius:8px; animation: popIn 0.3s ease-out;">
-                <div style="font-size:1.5rem; margin-bottom:0.25rem;">💥</div>
-                <h4 style="margin:0; font-size:1.1rem; font-weight:900; color:#ef4444;">TARUHAN GAGAL TOTAL</h4>
-                <p style="margin:4px 0 0 0; font-size:0.8rem; color:rgba(255,255,255,0.7);">
-                    Tidak ada satupun tebakan yang tembus. Taruhan <span style="color:#fff;">$ ${this.simBetAmount.toLocaleString()}</span> hangus.
-                </p>
-            </div>
-        `;
+        this.selectedLegs.push({
+            id: `${matchId}_${market}_${pick}`,
+            matchId,
+            market,
+            pick,
+            label,
+            odds
+        });
     }
 
     getHTML() {
         const totalMultiplier = this.calculateTotalMultiplier();
+        const betInput = document.getElementById('parlay-bet-input');
+        const currentBet = betInput?.getNumericValue ? betInput.getNumericValue() : (parseInt(betInput?.value.replace(/,/g, '') || '100000', 10));
+        const estPayout = Math.round(currentBet * totalMultiplier);
 
-        // Render Football Match Cards
-        let footballHTML = '';
-        this.matches.forEach(match => {
-            const isHomeSelected = this.isLegSelected(match.id, 'home');
-            const isDrawSelected = this.isLegSelected(match.id, 'draw');
-            const isAwaySelected = this.isLegSelected(match.id, 'away');
+        // Filter matches
+        const filteredMatches = this.activeLeagueFilter === 'all'
+            ? this.matches
+            : this.matches.filter(m => m.leagueId === this.activeLeagueFilter);
 
-            footballHTML += `
-                <div class="parlay-card-item" style="min-width:0;">
-                    <div style="font-weight: 800; font-size: 0.82rem; color:#fff; margin-bottom:0.5rem; text-align:left; line-height:1.2; word-wrap: break-word;">
-                        ⚽ Match: ${match.home} vs ${match.away}
+        // League Tabs
+        const leagueTabsHTML = LEAGUES.map(league => `
+            <button class="league-tab-btn ${this.activeLeagueFilter === league.id ? 'active' : ''}" data-league-id="${league.id}">
+                <span>${league.emoji}</span> ${league.name}
+            </button>
+        `).join('');
+
+        // Fixtures Cards
+        let fixturesHTML = '';
+        filteredMatches.forEach(match => {
+            const isHome1 = this.isLegSelected(match.id, '1x2', 'home');
+            const isDrawX = this.isLegSelected(match.id, '1x2', 'draw');
+            const isAway2 = this.isLegSelected(match.id, '1x2', 'away');
+
+            const isOver = this.isLegSelected(match.id, 'ou', 'over');
+            const isUnder = this.isLegSelected(match.id, 'ou', 'under');
+
+            const isBttsYes = this.isLegSelected(match.id, 'btts', 'yes');
+            const isBttsNo = this.isLegSelected(match.id, 'btts', 'no');
+
+            fixturesHTML += `
+                <div class="football-fixture-card" data-card-match="${match.id}">
+                    <div class="fixture-header">
+                        <span class="fixture-league-tag">${match.leagueEmoji} ${match.leagueName}</span>
+                        <span class="fixture-live-pill">JADWAL UTAMA</span>
                     </div>
-                    <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:0.35rem;">
-                        <button class="parlay-bet-btn ${isHomeSelected ? 'active' : ''}" data-match-id="${match.id}" data-pick="home" data-odds="${match.odds.home}">
-                            1 (Home)<br><span style="color:#fbbf24; font-weight:800;">${match.odds.home.toFixed(2)}x</span>
-                        </button>
-                        <button class="parlay-bet-btn ${isDrawSelected ? 'active' : ''}" data-match-id="${match.id}" data-pick="draw" data-odds="${match.odds.draw}">
-                            X (Draw)<br><span style="color:#fbbf24; font-weight:800;">${match.odds.draw.toFixed(2)}x</span>
-                        </button>
-                        <button class="parlay-bet-btn ${isAwaySelected ? 'active' : ''}" data-match-id="${match.id}" data-pick="away" data-odds="${match.odds.away}">
-                            2 (Away)<br><span style="color:#fbbf24; font-weight:800;">${match.odds.away.toFixed(2)}x</span>
-                        </button>
+
+                    <!-- Teams Row -->
+                    <div class="fixture-teams-row">
+                        <div class="team-block home">
+                            <span class="team-badge">${match.home.emoji}</span>
+                            <span class="team-name">${match.home.name}</span>
+                        </div>
+                        <div class="fixture-vs-divider">VS</div>
+                        <div class="team-block away">
+                            <span class="team-name">${match.away.name}</span>
+                            <span class="team-badge">${match.away.emoji}</span>
+                        </div>
+                    </div>
+
+                    <!-- Betting Markets Grid -->
+                    <div class="markets-container">
+                        <!-- Market 1: 1X2 Match Winner -->
+                        <div class="market-section">
+                            <div class="market-title">Pemenang Pertandingan (1X2)</div>
+                            <div class="odds-btn-group trio">
+                                <button class="odds-pill ${isHome1 ? 'selected' : ''}" data-match-id="${match.id}" data-market="1x2" data-pick="home" data-odds="${match.odds.home}">
+                                    <span class="pick-name">1 (${match.home.name.slice(0, 10)})</span>
+                                    <span class="odds-val">${match.odds.home.toFixed(2)}x</span>
+                                </button>
+                                <button class="odds-pill ${isDrawX ? 'selected' : ''}" data-match-id="${match.id}" data-market="1x2" data-pick="draw" data-odds="${match.odds.draw}">
+                                    <span class="pick-name">X (Seri)</span>
+                                    <span class="odds-val">${match.odds.draw.toFixed(2)}x</span>
+                                </button>
+                                <button class="odds-pill ${isAway2 ? 'selected' : ''}" data-match-id="${match.id}" data-market="1x2" data-pick="away" data-odds="${match.odds.away}">
+                                    <span class="pick-name">2 (${match.away.name.slice(0, 10)})</span>
+                                    <span class="odds-val">${match.odds.away.toFixed(2)}x</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Market 2: Over / Under 2.5 Goals -->
+                        <div class="market-section">
+                            <div class="market-title">Total Gol (Over / Under 2.5)</div>
+                            <div class="odds-btn-group duo">
+                                <button class="odds-pill ${isOver ? 'selected' : ''}" data-match-id="${match.id}" data-market="ou" data-pick="over" data-odds="${match.odds.over}">
+                                    <span class="pick-name">Over &gt; 2.5 Gol</span>
+                                    <span class="odds-val">${match.odds.over.toFixed(2)}x</span>
+                                </button>
+                                <button class="odds-pill ${isUnder ? 'selected' : ''}" data-match-id="${match.id}" data-market="ou" data-pick="under" data-odds="${match.odds.under}">
+                                    <span class="pick-name">Under &lt; 2.5 Gol</span>
+                                    <span class="odds-val">${match.odds.under.toFixed(2)}x</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Market 3: BTTS Both Teams To Score -->
+                        <div class="market-section">
+                            <div class="market-title">Kedua Tim Cetak Gol (BTTS)</div>
+                            <div class="odds-btn-group duo">
+                                <button class="odds-pill ${isBttsYes ? 'selected' : ''}" data-match-id="${match.id}" data-market="btts" data-pick="yes" data-odds="${match.odds.bttsYes}">
+                                    <span class="pick-name">Ya (Kedua Gol)</span>
+                                    <span class="odds-val">${match.odds.bttsYes.toFixed(2)}x</span>
+                                </button>
+                                <button class="odds-pill ${isBttsNo ? 'selected' : ''}" data-match-id="${match.id}" data-market="btts" data-pick="no" data-odds="${match.odds.bttsNo}">
+                                    <span class="pick-name">Tidak (Ada yang 0)</span>
+                                    <span class="odds-val">${match.odds.bttsNo.toFixed(2)}x</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
         });
 
-        // Render Horse Race Cards
-        let horseHTML = '';
-        HORSES.forEach(horse => {
-            const isSelected = this.isLegSelected('baby_derby', horse.name);
-            horseHTML += `
-                <button class="parlay-bet-btn ${isSelected ? 'active' : ''}" data-horse-name="${horse.name}" data-odds="${horse.odds}" style="text-align:left; display:flex; justify-content:space-between; align-items:center; padding: 0.5rem 0.75rem;">
-                    <span>${horse.name}</span>
-                    <span style="color:#fbbf24; font-weight:800;">${horse.odds.toFixed(2)}x</span>
-                </button>
-            `;
-        });
-
-        // Render Current Selected Legs list
-        let legsListHTML = '';
+        // Betting Slip Legs HTML
+        let slipLegsHTML = '';
         if (this.selectedLegs.length === 0) {
-            legsListHTML = `
-                <div style="color:rgba(255,255,255,0.3); font-size:0.75rem; font-style:italic; padding: 1.5rem 0; text-align:center;">
-                    Belum ada taruhan terpilih. Silakan pilih 2-5 leg di bawah.
+            slipLegsHTML = `
+                <div class="empty-slip-state">
+                    <span class="slip-icon">⚽</span>
+                    <p>Tiket Parlay Kosong</p>
+                    <small>Pilih minimal 2 pertandingan di sebelah kiri untuk mengaktifkan multiplier akumulatif!</small>
                 </div>
             `;
         } else {
-            this.selectedLegs.forEach((leg, index) => {
-                legsListHTML += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); padding:0.4rem 0.6rem; border-radius:8px; font-size:0.75rem; margin-bottom:0.35rem; width:100%; box-sizing:border-box;">
-                        <div style="text-align:left; flex: 1; min-width: 0; padding-right: 5px;">
-                            <div style="font-weight:800; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${leg.label}</div>
-                            <div style="font-size:0.65rem; color:rgba(255,255,255,0.5); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Pilihan: <span style="color:#10b981; font-weight:700;">${leg.prediction.toUpperCase()}</span></div>
+            slipLegsHTML = this.selectedLegs.map((leg, index) => {
+                const match = this.matches.find(m => m.id === leg.matchId);
+                let marketLabel = '';
+                if (leg.market === '1x2') {
+                    marketLabel = leg.pick === 'home' ? `Menang: ${match?.home.name}` : (leg.pick === 'away' ? `Menang: ${match?.away.name}` : 'Hasil Seri (X)');
+                } else if (leg.market === 'ou') {
+                    marketLabel = leg.pick === 'over' ? 'Total Gol > 2.5' : 'Total Gol < 2.5';
+                } else if (leg.market === 'btts') {
+                    marketLabel = leg.pick === 'yes' ? 'Kedua Tim Cetak Gol: YA' : 'Kedua Tim Cetak Gol: TIDAK';
+                }
+
+                return `
+                    <div class="slip-leg-item">
+                        <div class="slip-leg-info">
+                            <div class="match-title">${match ? `${match.home.emoji} ${match.home.name} vs ${match.away.name} ${match.away.emoji}` : 'Match'}</div>
+                            <div class="pick-label">${marketLabel}</div>
                         </div>
-                        <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink: 0;">
-                            <span style="color:#fbbf24; font-weight:900;">${leg.odds.toFixed(2)}x</span>
-                            <button class="btn-remove-leg" data-leg-index="${index}" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-weight:900; font-size:0.95rem;">×</button>
+                        <div class="slip-leg-odds">
+                            <span class="odds-tag">${leg.odds.toFixed(2)}x</span>
+                            <button class="btn-remove-leg" data-leg-index="${index}" title="Hapus Leg">×</button>
                         </div>
                     </div>
                 `;
-            });
+            }).join('');
         }
 
         return `
-        <div style="width: 100%; max-width: 760px; margin: 0 auto; text-align: center; animation: fade-up 0.3s ease; box-sizing: border-box; overflow-x: hidden;">
-            <div style="display:flex; justify-content:center; margin-bottom:0.4rem;">
+        <div class="parlay-sports-suite">
+            <!-- Header Bar -->
+            <div class="parlay-header">
                 <button type="button" class="btn-lobby-pill" title="Buka Menu Game (L)"><span>☰</span> LOBBY / GANTI GAME</button>
+                <h3 class="parlay-title">
+                    ⚽ <span class="title-grad">EURO SPORTSBOOK PARLAY</span>
+                </h3>
+                <p class="parlay-sub">PREMIER LEAGUE • CHAMPIONS LEAGUE • LA LIGA • SERIE A • BUNDESLIGA</p>
+                <div class="rate-badge-wrap">
+                    ${this.getRateStatusHTML()}
+                </div>
             </div>
-            <h3 style="font-weight: 950; color: #fff; margin-bottom: 0.35rem; font-size: 1.5rem; letter-spacing: -0.02em;">
-                🎰 <span style="background: linear-gradient(90deg,#10b981,#fbbf24); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">PARLAY BET TERMINAL</span>
-            </h3>
-            <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">Gabungkan Taruhan Bola &amp; Pacuan Kuda Untuk Multiplier Raksasa!</p>
-            ${this.getRateStatusHTML()}
 
-            <div class="parlay-grid-layout" style="display:grid; grid-template-columns: 1.3fr 1fr; gap:0.75rem; text-align:left; margin-bottom:0.75rem; width:100%; box-sizing:border-box;">
+            <!-- League Navigation Tabs -->
+            <div class="league-nav-strip">
+                ${leagueTabsHTML}
+            </div>
+
+            <!-- Main Workspace: Fixtures + Betting Slip -->
+            <div class="parlay-grid-board">
                 
-                <!-- Left Column: Bets Selection -->
-                <div style="display:flex; flex-direction:column; gap:0.75rem; min-width:0;">
-                    
-                    <!-- Mega Football Section -->
-                    <div class="parlay-section-box">
-                        <h4 style="font-size:0.8rem; font-weight:900; color:#10b981; margin:0 0 0.5rem 0; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid rgba(16,185,129,0.2); padding-bottom:3px;">⚽ MEGA FOOTBALL</h4>
-                        ${footballHTML}
-                    </div>
-
-                    <!-- Baby Derby Section -->
-                    <div class="parlay-section-box">
-                        <h4 style="font-size:0.8rem; font-weight:900; color:#fbbf24; margin:0 0 0.5rem 0; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid rgba(251,191,36,0.2); padding-bottom:3px;">🐎 BABY DERBY (Pacuan Kuda)</h4>
-                        <div style="display:flex; flex-direction:column; gap:0.35rem;">
-                            ${horseHTML}
-                        </div>
-                    </div>
-
-                    <!-- Random Mystery Bet Section -->
-                    <div class="parlay-section-box" style="text-align:center; padding:0.75rem;">
-                        <button id="btn-add-random-bet" class="bet-chip" style="width:100%; border-radius:8px; background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.3); color:#c084fc; font-weight:800; font-size:0.8rem; padding: 0.5rem 1rem;">
-                            🎲 TAMBAH TARUHAN ACAK (Odds 2x - 90x)
+                <!-- Left: Football Match Fixtures Column -->
+                <div class="fixtures-column">
+                    <div class="fixtures-container-header">
+                        <span class="col-title">PERTANDINGAN TERSEDIA</span>
+                        <button id="btn-refresh-fixtures" class="btn-refresh-matches" title="Acak Jadwal Baru">
+                            🔄 Acak Jadwal
                         </button>
                     </div>
-
+                    <div class="fixtures-scroll-list">
+                        ${fixturesHTML}
+                    </div>
                 </div>
 
-                <!-- Right Column: Ticket Info & Simulation Output -->
-                <div style="display:flex; flex-direction:column; gap:0.75rem; min-width:0;">
-                    
-                    <!-- Current Parlay Card Ticket -->
-                    <div class="parlay-section-box" style="flex:1; display:flex; flex-direction:column;">
-                        <h4 style="font-size:0.8rem; font-weight:900; color:#fff; margin:0 0 0.5rem 0; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:3px;">🎫 TIKET PARLAY ANDA</h4>
-                        
-                        <div style="flex:1; overflow-y:auto; overflow-x:hidden; max-height:220px; margin-bottom:0.5rem; width:100%; box-sizing:border-box;">
-                            ${legsListHTML}
+                <!-- Right: Bet Slip & Live Match Broadcast Station -->
+                <div class="slip-column">
+                    <div class="slip-box-card">
+                        <div class="slip-card-header">
+                            <div class="slip-title-row">
+                                <span class="slip-badge">TIKET PARLAY</span>
+                                <span class="slip-legs-count">${this.selectedLegs.length}/6 Leg</span>
+                            </div>
+                            <span class="slip-rule-sub">Semua tebakan wajib tembus (All-Win)</span>
                         </div>
 
-                        <!-- Ticket Odds & Multiplier summary -->
-                        <div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:0.5rem;">
-                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:rgba(255,255,255,0.6); margin-bottom:0.25rem;">
-                                <span>Total Legs:</span>
-                                <span style="font-weight:800; color:#fff;">${this.selectedLegs.length} Pilihan</span>
+                        <!-- Legs Container -->
+                        <div class="slip-legs-scroll">
+                            ${slipLegsHTML}
+                        </div>
+
+                        <!-- Ticket Multiplier Summary -->
+                        <div class="slip-summary-footer">
+                            <div class="summary-row">
+                                <span class="lbl">Total Multiplier:</span>
+                                <span class="val-multiplier" id="parlay-total-multiplier-val">${totalMultiplier.toFixed(2)}x</span>
                             </div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:rgba(255,255,255,0.8); margin-bottom:0.5rem;">
-                                <span>Max Potential Win:</span>
-                                <span style="font-weight:900; color:#fbbf24; font-size:1rem;">${totalMultiplier.toFixed(2)}x</span>
+                            <div class="summary-row">
+                                <span class="lbl">Potensi Kemenangan:</span>
+                                <span class="val-payout" id="parlay-est-payout-val">$ ${estPayout.toLocaleString()}</span>
                             </div>
+
+                            <!-- Bet Input -->
+                            <div class="parlay-bet-input-box">
+                                <div class="bet-label-row">
+                                    <span class="lbl-taruhan">TARUHAN TIKET</span>
+                                    <div class="input-inline">
+                                        <span class="tc-sign">$</span>
+                                        <input type="text" id="parlay-bet-input" value="100,000" ${this.isSimulating ? 'disabled' : ''}>
+                                    </div>
+                                </div>
+                                <div class="parlay-preset-chips">
+                                    <button class="bet-chip parlay-preset" data-val="10000" ${this.isSimulating ? 'disabled' : ''}>$10K</button>
+                                    <button class="bet-chip parlay-preset" data-val="100000" ${this.isSimulating ? 'disabled' : ''}>$100K</button>
+                                    <button class="bet-chip parlay-preset" data-val="1000000" ${this.isSimulating ? 'disabled' : ''}>$1M</button>
+                                    <button class="bet-chip bet-chip-max parlay-preset" id="btn-parlay-max" ${this.isSimulating ? 'disabled' : ''}>MAX</button>
+                                </div>
+                            </div>
+
+                            <!-- Submit / Kickoff Button -->
+                            <button id="btn-parlay-submit" class="btn-parlay-kickoff" ${this.selectedLegs.length < 2 || this.isSimulating ? 'disabled' : ''}>
+                                ${this.isSimulating ? '⏱️ MATCHDAY SEDANG BERLANGSUNG...' : '🚀 PASANG PARLAY &amp; KICK-OFF'}
+                            </button>
                         </div>
                     </div>
-
-                    <!-- Bet Input Panel -->
-                    <div class="parlay-section-box" style="padding:0.75rem;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
-                            <span style="font-size:0.65rem; color:rgba(255,255,255,0.5); font-weight:700;">TARUHAN</span>
-                            <div style="display:flex; align-items:center; gap:0.15rem;">
-                                <span style="color:#fbbf24; font-weight:900; font-size:1rem;">$</span>
-                                <input type="text" id="parlay-bet-input" value="100,000" style="background:transparent; border:none; font-size:1.1rem; font-weight:900; color:#fff; width:110px; text-align:right; border-bottom:1.5px solid rgba(251,191,36,0.4); outline:none;">
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:0.25rem; justify-content:center; margin-bottom:0.5rem;">
-                            <button class="bet-chip parlay-preset" data-val="10000" style="font-size:0.65rem; padding: 2px 6px;">$10K</button>
-                            <button class="bet-chip parlay-preset" data-val="100000" style="font-size:0.65rem; padding: 2px 6px;">$100K</button>
-                            <button class="bet-chip parlay-preset" data-val="1000000" style="font-size:0.65rem; padding: 2px 6px;">$1M</button>
-                            <button class="bet-chip bet-chip-max parlay-preset" id="btn-parlay-max" style="font-size:0.65rem; padding: 2px 6px;">MAX</button>
-                        </div>
-                        <button id="btn-parlay-submit" class="spin-btn-action" style="font-size:0.95rem; height:38px; border-radius:8px; background:linear-gradient(135deg,#10b981 0%,#059669 100%); box-shadow:0 3px 8px rgba(16,185,129,0.2);" ${this.selectedLegs.length < 2 || this.isSimulating ? 'disabled' : ''}>
-                            🚀 MULAI SIMULASI PARLAY
-                        </button>
-                    </div>
-
                 </div>
 
             </div>
 
-            <!-- Simulation Scoreboard Area -->
-            <div id="parlay-sim-console" class="parlay-sim-box" style="display:${this.isSimulating || this.simLegStates.length > 0 ? 'block' : 'none'}; padding:1.25rem; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.08); text-align:left;">
-                <div style="font-size:0.85rem; color:#fff; text-transform:uppercase; font-weight:900; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:6px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <span>📊 PAPAN SKOR SIMULASI LIVE</span>
-                    <span style="font-size:0.75rem; color:#a855f7;">Tiket: ${this.simLegStates.length} Leg</span>
+            <!-- Live Matchday Broadcast Console Area -->
+            <div id="parlay-broadcast-arena" class="broadcast-arena-box" style="display:${this.isSimulating || this.simLegStates.length > 0 ? 'block' : 'none'};">
+                <div class="broadcast-arena-header">
+                    <div class="live-status-indicator">
+                        <span class="live-dot"></span>
+                        <span class="live-label">LIVE MATCHDAY BROADCAST CENTER</span>
+                    </div>
+                    <div class="match-clock-badge" id="broadcast-match-clock">
+                        ⏱️ MENIT: ${this.simCurrentMinute}'
+                    </div>
                 </div>
-                <div id="parlay-scoreboard-area" style="display:flex; flex-direction:column; gap:0.65rem;">
-                    ${this.renderScoreboardRows()}
+
+                <div class="broadcast-scoreboard-grid" id="broadcast-scoreboard-grid">
+                    ${this.renderBroadcastLegs()}
                 </div>
-                <div id="parlay-summary-area">
-                    ${this.renderSimulationSummary()}
+
+                <!-- Live Commentary Ticker -->
+                <div class="broadcast-ticker-bar">
+                    <span class="ticker-prefix">📢 KOMENTAR:</span>
+                    <span class="ticker-text" id="broadcast-live-commentary">Menunggu peluit kick-off wasit...</span>
+                </div>
+
+                <!-- Final Result Banner -->
+                <div id="broadcast-summary-banner">
+                    ${this.renderBroadcastSummary()}
                 </div>
             </div>
 
         </div>
 
         <style>
-            .parlay-section-box {
-                background: rgba(0,0,0,0.25);
-                border: 1px solid rgba(255,255,255,0.05);
-                border-radius: 12px;
-                padding: 0.65rem;
+            .parlay-sports-suite {
+                max-width: 980px;
+                margin: 0 auto;
+                text-align: center;
+                animation: fade-up 0.3s ease;
+                box-sizing: border-box;
+                padding-bottom: 2rem;
             }
-            .parlay-card-item {
-                background: rgba(255,255,255,0.02);
-                border: 1px solid rgba(255,255,255,0.04);
-                padding: 0.5rem;
-                border-radius: 8px;
-                margin-bottom: 0.4rem;
+            .parlay-header { margin-bottom: 0.75rem; }
+            .parlay-title {
+                font-family: var(--font-display, 'Russo One', sans-serif);
+                font-size: 1.55rem;
+                font-weight: 900;
+                margin: 0.35rem 0 0.15rem 0;
             }
-            .parlay-bet-btn {
-                background: rgba(255,255,255,0.03);
-                border: 1px solid rgba(255,255,255,0.08);
+            .title-grad {
+                background: linear-gradient(90deg, #10b981, #fbbf24, #34d399);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .parlay-sub {
+                color: rgba(255,255,255,0.45);
+                font-size: 0.7rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                margin-bottom: 0.5rem;
+            }
+            .rate-badge-wrap { display: flex; justify-content: center; }
+
+            /* League Filter Strip */
+            .league-nav-strip {
+                display: flex;
+                gap: 0.4rem;
+                overflow-x: auto;
+                padding: 0.35rem 0;
+                margin-bottom: 0.85rem;
+                justify-content: center;
+                scrollbar-width: none;
+            }
+            .league-tab-btn {
+                background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 999px;
                 color: rgba(255,255,255,0.7);
-                font-size: 0.72rem;
-                padding: 0.35rem 0.25rem;
-                border-radius: 6px;
+                padding: 0.35rem 0.85rem;
+                font-size: 0.75rem;
+                font-weight: 800;
                 cursor: pointer;
                 transition: all 0.2s;
+                white-space: nowrap;
+                display: flex;
+                align-items: center;
+                gap: 0.35rem;
+            }
+            .league-tab-btn:hover {
+                background: rgba(16,185,129,0.1);
+                border-color: rgba(16,185,129,0.3);
+                color: #fff;
+            }
+            .league-tab-btn.active {
+                background: linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(5,150,105,0.3) 100%);
+                border-color: #10b981;
+                color: #10b981;
+                box-shadow: 0 0 10px rgba(16,185,129,0.3);
+            }
+
+            /* Main Grid */
+            .parlay-grid-board {
+                display: grid;
+                grid-template-columns: 1.45fr 1fr;
+                gap: 0.85rem;
+                text-align: left;
+                margin-bottom: 1rem;
+            }
+
+            /* Left: Fixtures Column */
+            .fixtures-column {
+                display: flex;
+                flex-direction: column;
+                gap: 0.6rem;
+                min-width: 0;
+            }
+            .fixtures-container-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0 0.2rem;
+            }
+            .col-title {
+                font-size: 0.75rem;
+                font-weight: 900;
+                color: rgba(255,255,255,0.6);
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+            }
+            .btn-refresh-matches {
+                background: transparent;
+                border: 1px solid rgba(255,255,255,0.12);
+                border-radius: 6px;
+                color: rgba(255,255,255,0.7);
+                font-size: 0.68rem;
+                font-weight: 800;
+                padding: 0.2rem 0.55rem;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .btn-refresh-matches:hover {
+                background: rgba(255,255,255,0.08);
+                color: #fff;
+            }
+
+            .fixtures-scroll-list {
+                display: flex;
+                flex-direction: column;
+                gap: 0.65rem;
+                max-height: 520px;
+                overflow-y: auto;
+                padding-right: 4px;
+            }
+
+            /* Fixture Card */
+            .football-fixture-card {
+                background: rgba(20, 16, 12, 0.75);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 12px;
+                padding: 0.75rem;
+                backdrop-filter: blur(10px);
+                transition: border-color 0.2s;
+            }
+            .football-fixture-card:hover {
+                border-color: rgba(251,191,36,0.3);
+            }
+            .fixture-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.5rem;
+                font-size: 0.68rem;
+            }
+            .fixture-league-tag {
+                color: rgba(255,255,255,0.6);
+                font-weight: 800;
+            }
+            .fixture-live-pill {
+                color: #10b981;
+                background: rgba(16,185,129,0.1);
+                border: 1px solid rgba(16,185,129,0.25);
+                padding: 1px 6px;
+                border-radius: 4px;
+                font-weight: 900;
+                font-size: 0.6rem;
+            }
+            .fixture-teams-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: rgba(0,0,0,0.3);
+                border-radius: 8px;
+                padding: 0.5rem 0.75rem;
+                margin-bottom: 0.6rem;
+            }
+            .team-block {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+                font-weight: 800;
+                font-size: 0.85rem;
+                color: #fff;
+                flex: 1;
+            }
+            .team-block.home { justify-content: flex-start; }
+            .team-block.away { justify-content: flex-end; }
+            .fixture-vs-divider {
+                font-size: 0.65rem;
+                font-weight: 900;
+                color: rgba(255,255,255,0.3);
+                padding: 0 0.5rem;
+            }
+
+            /* Markets Layout */
+            .markets-container {
+                display: flex;
+                flex-direction: column;
+                gap: 0.45rem;
+            }
+            .market-section { display: flex; flex-direction: column; gap: 0.25rem; }
+            .market-title {
+                font-size: 0.65rem;
+                color: rgba(255,255,255,0.5);
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+            .odds-btn-group {
+                display: grid;
+                gap: 0.35rem;
+            }
+            .odds-btn-group.trio { grid-template-columns: repeat(3, 1fr); }
+            .odds-btn-group.duo { grid-template-columns: repeat(2, 1fr); }
+
+            .odds-pill {
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 6px;
+                padding: 0.35rem 0.25rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
                 font-family: inherit;
             }
-            .parlay-bet-btn:hover {
+            .odds-pill:hover {
                 background: rgba(255,255,255,0.08);
                 border-color: rgba(255,255,255,0.2);
             }
-            .parlay-bet-btn.active {
-                background: rgba(16,185,129,0.15) !important;
+            .odds-pill.selected {
+                background: linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(5,150,105,0.3) 100%) !important;
                 border-color: #10b981 !important;
-                color: #10b981 !important;
-                box-shadow: 0 0 8px rgba(16,185,129,0.2);
+                box-shadow: 0 0 10px rgba(16,185,129,0.3);
             }
-            .parlay-sim-box {
-                background: #05070a;
-                border: 2px solid #1e293b;
-                border-radius: 12px;
-                padding: 0.75rem;
-                box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
-                margin-top: 0.75rem;
-            }
-            .bet-chip {
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.1);
+            .odds-pill .pick-name {
+                font-size: 0.68rem;
                 color: rgba(255,255,255,0.8);
-                cursor: pointer;
-                transition: all 0.2s;
+                font-weight: 700;
+                text-align: center;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 100%;
             }
-            .bet-chip:hover {
-                background: rgba(16,185,129,0.1);
-                border-color: rgba(16,185,129,0.3);
-                color: #10b981;
+            .odds-pill.selected .pick-name { color: #fff; }
+            .odds-pill .odds-val {
+                font-size: 0.78rem;
+                font-weight: 900;
+                color: #fbbf24;
+                margin-top: 1px;
             }
-            .bet-chip-max {
+            .odds-pill.selected .odds-val { color: #10b981; }
+
+            /* Right: Slip Column */
+            .slip-column {
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+            }
+            .slip-box-card {
+                background: rgba(21, 17, 13, 0.85);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 14px;
+                padding: 0.85rem;
+                backdrop-filter: blur(14px);
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                position: sticky;
+                top: 1rem;
+            }
+            .slip-card-header {
+                border-bottom: 1px solid rgba(255,255,255,0.08);
+                padding-bottom: 0.5rem;
+                margin-bottom: 0.5rem;
+            }
+            .slip-title-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .slip-badge {
+                font-family: var(--font-display, sans-serif);
+                font-size: 0.85rem;
+                color: #fff;
+                font-weight: 900;
+                letter-spacing: 0.05em;
+            }
+            .slip-legs-count {
+                font-size: 0.72rem;
+                font-weight: 800;
+                color: #fbbf24;
                 background: rgba(251,191,36,0.1);
-                border-color: rgba(251,191,36,0.3);
+                border: 1px solid rgba(251,191,36,0.25);
+                padding: 2px 6px;
+                border-radius: 4px;
+            }
+            .slip-rule-sub {
+                display: block;
+                font-size: 0.62rem;
+                color: rgba(255,255,255,0.4);
+                margin-top: 2px;
+            }
+
+            .empty-slip-state {
+                padding: 2rem 1rem;
+                text-align: center;
+                color: rgba(255,255,255,0.4);
+            }
+            .empty-slip-state .slip-icon { font-size: 2rem; display: block; margin-bottom: 0.4rem; opacity: 0.5; }
+            .empty-slip-state p { font-size: 0.82rem; font-weight: 800; color: #fff; margin-bottom: 0.2rem; }
+            .empty-slip-state small { font-size: 0.68rem; display: block; line-height: 1.3; }
+
+            .slip-legs-scroll {
+                max-height: 200px;
+                overflow-y: auto;
+                margin-bottom: 0.65rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.35rem;
+            }
+            .slip-leg-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-radius: 8px;
+                padding: 0.45rem 0.6rem;
+                font-size: 0.72rem;
+            }
+            .slip-leg-info { flex: 1; min-width: 0; padding-right: 6px; }
+            .slip-leg-info .match-title {
+                font-weight: 800;
+                color: #fff;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .slip-leg-info .pick-label {
+                font-size: 0.65rem;
+                color: #10b981;
+                font-weight: 700;
+                margin-top: 1px;
+            }
+            .slip-leg-odds {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+            }
+            .slip-leg-odds .odds-tag {
+                font-weight: 900;
                 color: #fbbf24;
             }
-            @keyframes rateGlow {
-                from { box-shadow: 0 0 4px rgba(239,68,68,0.4), 0 0 10px rgba(251,191,36,0.2); transform: scale(1); }
-                to { box-shadow: 0 0 12px rgba(239,68,68,0.8), 0 0 20px rgba(251,191,36,0.6); transform: scale(1.03); }
+            .btn-remove-leg {
+                background: transparent;
+                border: none;
+                color: #ef4444;
+                font-size: 1.1rem;
+                cursor: pointer;
+                font-weight: 900;
+                line-height: 1;
+                padding: 0 2px;
             }
-            @media (max-width: 600px) {
-                .parlay-grid-layout {
-                    grid-template-columns: 1fr !important;
-                    gap: 0.5rem !important;
+
+            /* Slip Summary Footer */
+            .slip-summary-footer {
+                border-top: 1px solid rgba(255,255,255,0.08);
+                padding-top: 0.6rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .summary-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.78rem;
+            }
+            .summary-row .lbl { color: rgba(255,255,255,0.6); font-weight: 700; }
+            .val-multiplier { font-family: var(--font-display, sans-serif); color: #fbbf24; font-size: 1.05rem; font-weight: 900; }
+            .val-payout { font-family: var(--font-num, monospace); color: #10b981; font-size: 1.15rem; font-weight: 900; }
+
+            .parlay-bet-input-box {
+                background: rgba(0,0,0,0.3);
+                border-radius: 8px;
+                padding: 0.5rem;
+                border: 1px solid rgba(255,255,255,0.06);
+            }
+            .bet-label-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.4rem;
+            }
+            .lbl-taruhan { font-size: 0.65rem; color: rgba(255,255,255,0.5); font-weight: 800; }
+            .input-inline { display: flex; align-items: center; gap: 0.2rem; }
+            .tc-sign { color: #fbbf24; font-weight: 900; }
+            #parlay-bet-input {
+                background: transparent;
+                border: none;
+                font-size: 1.15rem;
+                font-weight: 900;
+                color: #fff;
+                width: 110px;
+                text-align: right;
+                border-bottom: 1.5px solid rgba(251,191,36,0.4);
+                outline: none;
+                font-family: var(--font-num, monospace);
+            }
+            .parlay-preset-chips {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.25rem;
+            }
+
+            .btn-parlay-kickoff {
+                font-family: var(--font-display, 'Russo One', sans-serif);
+                width: 100%;
+                border: none;
+                border-radius: 10px;
+                padding: 0.85rem;
+                font-size: 1.05rem;
+                color: #fff;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                box-shadow: 0 4px 15px rgba(16,185,129,0.35);
+                cursor: pointer;
+                transition: all 0.2s;
+                letter-spacing: 0.04em;
+            }
+            .btn-parlay-kickoff:hover:not(:disabled) {
+                transform: translateY(-2px);
+                filter: brightness(1.1);
+            }
+            .btn-parlay-kickoff:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+            }
+
+            /* Live Matchday Broadcast Arena */
+            .broadcast-arena-box {
+                background: #080c10;
+                border: 2px solid #1e293b;
+                border-radius: 14px;
+                padding: 1rem;
+                margin-top: 1rem;
+                box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+                text-align: left;
+            }
+            .broadcast-arena-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid rgba(255,255,255,0.08);
+                padding-bottom: 0.6rem;
+                margin-bottom: 0.75rem;
+            }
+            .live-status-indicator {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+            }
+            .live-dot {
+                width: 8px;
+                height: 8px;
+                background: #ef4444;
+                border-radius: 50%;
+                animation: rateGlow 1s infinite alternate;
+            }
+            .live-label {
+                font-size: 0.75rem;
+                font-weight: 900;
+                color: #fff;
+                letter-spacing: 0.06em;
+            }
+            .match-clock-badge {
+                font-family: var(--font-num, monospace);
+                font-size: 0.85rem;
+                font-weight: 900;
+                color: #fbbf24;
+                background: rgba(251,191,36,0.12);
+                border: 1px solid rgba(251,191,36,0.3);
+                padding: 2px 8px;
+                border-radius: 6px;
+            }
+
+            .broadcast-scoreboard-grid {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                margin-bottom: 0.75rem;
+            }
+            .broadcast-leg-row {
+                background: rgba(255,255,255,0.02);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-radius: 8px;
+                padding: 0.6rem 0.8rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .broadcast-leg-left { flex: 1; }
+            .broadcast-leg-match { font-size: 0.82rem; font-weight: 800; color: #fff; }
+            .broadcast-leg-market { font-size: 0.7rem; color: rgba(255,255,255,0.5); margin-top: 2px; }
+            .broadcast-leg-right { text-align: right; }
+            .broadcast-score-text {
+                font-family: var(--font-num, monospace);
+                font-size: 1.1rem;
+                font-weight: 900;
+                color: #fff;
+                letter-spacing: 0.08em;
+            }
+            .broadcast-status-badge {
+                font-size: 0.65rem;
+                font-weight: 800;
+                padding: 2px 6px;
+                border-radius: 4px;
+                display: inline-block;
+                margin-top: 2px;
+            }
+            .status-live { background: rgba(251,191,36,0.15); color: #fbbf24; }
+            .status-won { background: rgba(16,185,129,0.15); color: #10b981; }
+            .status-lost { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+            .broadcast-ticker-bar {
+                background: rgba(0,0,0,0.5);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-radius: 6px;
+                padding: 0.45rem 0.75rem;
+                font-size: 0.75rem;
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+            }
+            .ticker-prefix { color: #fbbf24; font-weight: 800; }
+            .ticker-text { color: rgba(255,255,255,0.85); font-style: italic; }
+
+            @media (max-width: 768px) {
+                .parlay-grid-board {
+                    grid-template-columns: 1fr;
                 }
-                .parlay-section-box {
-                    padding: 0.5rem !important;
-                }
-                .parlay-bet-btn {
-                    font-size: 0.65rem !important;
-                    padding: 0.25rem 0.15rem !important;
-                    word-wrap: break-word;
-                    white-space: normal;
-                }
-                .parlay-card-item {
-                    padding: 0.4rem !important;
-                }
-                #btn-add-random-bet {
-                    font-size: 0.72rem !important;
-                    padding: 0.4rem 0.75rem !important;
+                .fixtures-scroll-list {
+                    max-height: 380px;
                 }
             }
         </style>
+        `;
+    }
+
+    renderBroadcastLegs() {
+        if (!this.simLegStates || this.simLegStates.length === 0) return '';
+        return this.simLegStates.map((leg, index) => {
+            const match = this.matches.find(m => m.id === leg.matchId);
+            let statusBadge = '<span class="broadcast-status-badge status-live">MENUNGGU ⏳</span>';
+            if (leg.status === 'live') {
+                statusBadge = '<span class="broadcast-status-badge status-live">LIVE ⏱️</span>';
+            } else if (leg.status === 'won') {
+                statusBadge = '<span class="broadcast-status-badge status-won">TEMBUS ✅</span>';
+            } else if (leg.status === 'lost') {
+                statusBadge = '<span class="broadcast-status-badge status-lost">GAGAL ❌</span>';
+            }
+
+            return `
+                <div class="broadcast-leg-row">
+                    <div class="broadcast-leg-left">
+                        <div class="broadcast-leg-match">${match ? `${match.home.emoji} ${match.home.name} vs ${match.away.name} ${match.away.emoji}` : 'Match'}</div>
+                        <div class="broadcast-leg-market">Pilihan: <strong style="color:#fbbf24;">${leg.marketLabel}</strong> (${leg.odds.toFixed(2)}x)</div>
+                    </div>
+                    <div class="broadcast-leg-right">
+                        <div class="broadcast-score-text">${leg.currentScore}</div>
+                        ${statusBadge}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderBroadcastSummary() {
+        if (this.simResult === null) return '';
+
+        if (this.simResult === 'win') {
+            return `
+                <div style="margin-top:0.75rem; text-align:center; background:rgba(16,185,129,0.1); border:1.5px solid #10b981; padding:1.25rem; border-radius:10px; animation: popIn 0.3s ease-out;">
+                    <div style="font-size:2rem; margin-bottom:0.25rem;">🏆</div>
+                    <h4 style="margin:0; font-size:1.2rem; font-weight:900; color:#10b981; letter-spacing:0.04em;">TIKET PARLAY TEMBUS SEMPURNA!</h4>
+                    <p style="margin:6px 0 0 0; font-size:0.85rem; color:rgba(255,255,255,0.85);">
+                        Seluruh ${this.simLegStates.length} tebakan Anda benar! Payout kemenangan: <strong style="color:#fbbf24; font-size:1.15rem;">+$ ${this.simWinAmount.toLocaleString()} TC</strong>
+                    </p>
+                </div>
+            `;
+        }
+
+        return `
+            <div style="margin-top:0.75rem; text-align:center; background:rgba(239,68,68,0.1); border:1.5px solid #ef4444; padding:1.25rem; border-radius:10px; animation: popIn 0.3s ease-out;">
+                <div style="font-size:2rem; margin-bottom:0.25rem;">💥</div>
+                <h4 style="margin:0; font-size:1.15rem; font-weight:900; color:#ef4444;">TIKET PARLAY GAGAL</h4>
+                <p style="margin:6px 0 0 0; font-size:0.82rem; color:rgba(255,255,255,0.7);">
+                    Sayang sekali, dalam sistem Parlay murni semua tebakan wajib tembus. Taruhan sebesar <span style="color:#fff;">$ ${this.simBetAmount.toLocaleString()}</span> hangus.
+                </p>
+            </div>
         `;
     }
 
@@ -500,10 +1051,34 @@ export class ParlayEngine {
 
         const betInput = document.getElementById('parlay-bet-input');
         if (betInput) {
-            import('../ui/UIManager.js').then(m => m.default.setupNumericInput(betInput));
+            import('../ui/UIManager.js').then(m => {
+                m.default.setupNumericInput(betInput);
+                betInput.addEventListener('input', () => {
+                    this.updateSummaryValues();
+                });
+            });
         }
 
-        // Preset Chips
+        // League filter click
+        container.querySelectorAll('.league-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (this.isSimulating) return;
+                this.activeLeagueFilter = btn.dataset.leagueId;
+                this.refreshUI(container);
+            });
+        });
+
+        // Refresh fixtures
+        container.querySelector('#btn-refresh-fixtures')?.addEventListener('click', () => {
+            if (this.isSimulating) return;
+            import('../ui/AuraSound.js').then(m => m.default.playTap());
+            this.generateFixtureList();
+            this.selectedLegs = [];
+            this.refreshUI(container);
+            ui.info('Jadwal pertandingan liga Eropa diperbarui!', '⚽ Jadwal Baru');
+        });
+
+        // Preset chips
         container.querySelectorAll('.parlay-preset').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isSimulating) return;
@@ -520,61 +1095,23 @@ export class ParlayEngine {
             });
         });
 
-        // Football selections click
-        container.querySelectorAll('[data-match-id]').forEach(btn => {
+        // Odds pill buttons selection
+        container.querySelectorAll('.odds-pill').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isSimulating) return;
                 import('../ui/AuraSound.js').then(m => m.default.playClick());
                 const matchId = btn.dataset.matchId;
+                const market = btn.dataset.market;
                 const pick = btn.dataset.pick;
                 const odds = parseFloat(btn.dataset.odds);
-                const match = this.matches.find(m => m.id === matchId);
-                const label = `⚽ ${match.home} vs ${match.away}`;
+                const label = `${market.toUpperCase()} - ${pick.toUpperCase()}`;
 
-                this.addOrToggleLeg(matchId, 'football', label, pick, odds);
+                this.addOrToggleLeg(matchId, market, pick, label, odds);
                 this.refreshUI(container);
             });
         });
 
-        // Horse selections click
-        container.querySelectorAll('[data-horse-name]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (this.isSimulating) return;
-                import('../ui/AuraSound.js').then(m => m.default.playClick());
-                const name = btn.dataset.horseName;
-                const odds = parseFloat(btn.dataset.odds);
-                const label = `Baby Derby Pacuan Kuda: ${name}`;
-
-                this.addOrToggleLeg('baby_derby', 'horse', label, name, odds);
-                this.refreshUI(container);
-            });
-        });
-
-        // Add Random Bet click
-        container.querySelector('#btn-add-random-bet')?.addEventListener('click', () => {
-            if (this.isSimulating) return;
-            if (this.selectedLegs.length >= 5) {
-                ui.toast({ type: 'warning', title: 'Limit Parlay', message: 'Maksimal taruhan parlay adalah 5 leg!' });
-                return;
-            }
-            import('../ui/AuraSound.js').then(m => m.default.playClick());
-
-            // Generate random odds 2x to 90x
-            const randomOdds = parseFloat((Math.random() * 88 + 2).toFixed(2));
-            const randomId = 'rand_' + Date.now();
-            const label = `🎲 Random Mystery Bet`;
-
-            this.selectedLegs.push({
-                id: randomId,
-                type: 'random',
-                label,
-                prediction: `odds ${randomOdds}x`,
-                odds: randomOdds
-            });
-            this.refreshUI(container);
-        });
-
-        // Remove leg click
+        // Remove leg
         container.querySelectorAll('.btn-remove-leg').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isSimulating) return;
@@ -585,55 +1122,45 @@ export class ParlayEngine {
             });
         });
 
-        // Start Parlay Bet submit
+        // Submit parlay
         container.querySelector('#btn-parlay-submit')?.addEventListener('click', () => {
-            this.startSimulation();
+            this.startMatchdaySimulation();
         });
     }
 
-    isLegSelected(id, pick) {
-        return this.selectedLegs.some(l => l.id === id && l.prediction === pick);
-    }
+    updateSummaryValues() {
+        const betInput = document.getElementById('parlay-bet-input');
+        const currentBet = betInput?.getNumericValue ? betInput.getNumericValue() : (parseInt(betInput?.value.replace(/,/g, '') || '0', 10));
+        const totalMult = this.calculateTotalMultiplier();
+        const estPayout = Math.round(currentBet * totalMult);
 
-    addOrToggleLeg(id, type, label, prediction, odds) {
-        // Remove existing selection for the same game/match if any
-        this.selectedLegs = this.selectedLegs.filter(l => l.id !== id);
-
-        if (this.selectedLegs.length >= 5) {
-            ui.toast({ type: 'warning', title: 'Limit Parlay', message: 'Maksimal taruhan parlay adalah 5 leg!' });
-            return;
-        }
-
-        this.selectedLegs.push({ id, type, label, prediction, odds });
-    }
-
-    calculateTotalMultiplier() {
-        if (this.selectedLegs.length === 0) return 0.0;
-        const sumOdds = this.selectedLegs.reduce((sum, leg) => sum + leg.odds, 0.0);
-        return sumOdds / this.selectedLegs.length;
+        const estEl = document.getElementById('parlay-est-payout-val');
+        if (estEl) estEl.textContent = '$ ' + estPayout.toLocaleString();
     }
 
     refreshUI(container) {
+        const activeInputVal = document.getElementById('parlay-bet-input')?.value || '100,000';
         container.innerHTML = this.getHTML();
         this.bindEvents(container, this.onBalanceRefresh);
+        const newInput = document.getElementById('parlay-bet-input');
+        if (newInput) newInput.value = activeInputVal;
     }
 
-    refreshUIFromSimulation() {
-        const scoreboardArea = document.getElementById('parlay-scoreboard-area');
-        const summaryArea = document.getElementById('parlay-summary-area');
-        if (scoreboardArea && summaryArea) {
-            scoreboardArea.innerHTML = this.renderScoreboardRows();
-            summaryArea.innerHTML = this.renderSimulationSummary();
-        } else {
-            const root = document.getElementById('casino-game-panel');
-            if (root) {
-                root.innerHTML = this.getHTML();
-                this.bindEvents(root, this.onBalanceRefresh);
-            }
+    refreshSimulationConsole() {
+        const clockEl = document.getElementById('broadcast-match-clock');
+        const gridEl = document.getElementById('broadcast-scoreboard-grid');
+        const summaryEl = document.getElementById('broadcast-summary-banner');
+        const commentaryEl = document.getElementById('broadcast-live-commentary');
+
+        if (clockEl) clockEl.textContent = `⏱️ MENIT: ${this.simCurrentMinute}'`;
+        if (gridEl) gridEl.innerHTML = this.renderBroadcastLegs();
+        if (summaryEl) summaryEl.innerHTML = this.renderBroadcastSummary();
+        if (commentaryEl && this.simFeed.length > 0) {
+            commentaryEl.textContent = this.simFeed[this.simFeed.length - 1];
         }
     }
 
-    async startSimulation() {
+    async startMatchdaySimulation() {
         if (this.isSimulating) return;
         if (this.selectedLegs.length < 2) {
             ui.error('Pilih minimal 2 taruhan untuk membuat tiket Parlay!');
@@ -645,27 +1172,17 @@ export class ParlayEngine {
 
         if (betAmount <= 0) { ui.error('Masukkan jumlah taruhan yang valid!'); return; }
         const balance = gameState.getBalance();
-        if (betAmount > balance) { ui.error('Saldo tidak mencukupi!'); return; }
+        if (betAmount > balance) { ui.error('Saldo kas Anda tidak mencukupi!'); return; }
 
         this.isSimulating = true;
         this.simResult = null;
         this.simWinAmount = 0;
         this.simBetAmount = betAmount;
-
-        // Calculate stake per leg
-        const stakePerLeg = betAmount / this.selectedLegs.length;
-
-        // Initialize leg states
-        this.simLegStates = this.selectedLegs.map(leg => ({
-            ...leg,
-            status: 'pending',
-            details: '- : -'
-        }));
-
-        import('../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
+        this.simCurrentMinute = 0;
+        this.simFeed = ['Wasit meniup peluit kickoff tanda dimulainya matchday!'];
 
         // Deduct bet
-        financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Parlay / Multi-Bet');
+        financeManager.addExpense(betAmount, 'Lainnya', `Taruhan Parlay Sepak Bola (${this.selectedLegs.length} Leg)`);
         this.onBalanceRefresh?.();
 
         // Increment rate plays
@@ -674,184 +1191,141 @@ export class ParlayEngine {
         gameState.set('casino.ratePlays', plays);
         const rateOn = plays >= 250;
 
-        // Render simulation container
-        this.refreshUIFromSimulation();
-
-        let wonLegsCount = 0;
-
-        for (let i = 0; i < this.simLegStates.length; i++) {
-            const leg = this.simLegStates[i];
-            leg.status = 'simulating';
-            leg.details = 'LIVE';
-            this.refreshUIFromSimulation();
-            
-            await new Promise(r => setTimeout(r, 600));
-
-            let legSuccess = false;
-
-            if (leg.type === 'football') {
-                legSuccess = await this.simulateFootballLeg(leg, rateOn);
-            } else if (leg.type === 'horse') {
-                legSuccess = await this.simulateHorseLeg(leg, rateOn);
-            } else {
-                legSuccess = await this.simulateRandomLeg(leg, rateOn);
+        // Initialize state for each leg
+        this.simLegStates = this.selectedLegs.map(leg => {
+            const match = this.matches.find(m => m.id === leg.matchId);
+            let marketLabel = '';
+            if (leg.market === '1x2') {
+                marketLabel = leg.pick === 'home' ? `Menang ${match?.home.name}` : (leg.pick === 'away' ? `Menang ${match?.away.name}` : 'Seri');
+            } else if (leg.market === 'ou') {
+                marketLabel = leg.pick === 'over' ? '> 2.5 Gol' : '< 2.5 Gol';
+            } else if (leg.market === 'btts') {
+                marketLabel = leg.pick === 'yes' ? 'Kedua Gol (Ya)' : 'Kedua Gol (Tidak)';
             }
 
-            if (!legSuccess) {
-                leg.status = 'lost';
-                import('../ui/AuraSound.js').then(m => m.default.playCasinoLose());
-                this.refreshUIFromSimulation();
-            } else {
-                leg.status = 'won';
-                wonLegsCount++;
-                this.simWinAmount += (stakePerLeg * leg.odds);
-                import('../ui/AuraSound.js').then(m => m.default.playClaimMoney());
-                this.refreshUIFromSimulation();
-            }
+            return {
+                ...leg,
+                marketLabel,
+                status: 'live',
+                homeScore: 0,
+                awayScore: 0,
+                currentScore: '0 - 0'
+            };
+        });
+
+        // Reveal simulation arena
+        const arena = document.getElementById('parlay-broadcast-arena');
+        if (arena) arena.style.display = 'block';
+        this.refreshSimulationConsole();
+
+        import('../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
+
+        // Simulation minute milestones
+        const minuteMilestones = [15, 30, 45, 65, 80, 90];
+
+        for (const targetMin of minuteMilestones) {
+            await new Promise(r => setTimeout(r, 700));
+            this.simCurrentMinute = targetMin;
+
+            // Generate goal chances or events
+            this.simLegStates.forEach(leg => {
+                const match = this.matches.find(m => m.id === leg.matchId);
+                const rollGoal = Math.random();
+
+                if (rateOn && Math.random() < 0.35) {
+                    // Favor user prediction during Rate On
+                    if (leg.market === '1x2' && leg.pick === 'home' && leg.homeScore <= leg.awayScore) {
+                        leg.homeScore++;
+                    } else if (leg.market === '1x2' && leg.pick === 'away' && leg.awayScore <= leg.homeScore) {
+                        leg.awayScore++;
+                    } else if (leg.market === 'ou' && leg.pick === 'over') {
+                        leg.homeScore++;
+                    }
+                } else if (rollGoal < 0.35) {
+                    // Random goal event
+                    if (Math.random() < 0.55) {
+                        leg.homeScore++;
+                    } else {
+                        leg.awayScore++;
+                    }
+                }
+
+                leg.currentScore = `${leg.homeScore} - ${leg.awayScore}`;
+            });
+
+            // Random commentary
+            const comment = MATCH_COMMENTARY[Math.floor(Math.random() * MATCH_COMMENTARY.length)];
+            this.simFeed.push(`${this.simCurrentMinute}' - ${comment.text}`);
+
+            this.refreshSimulationConsole();
         }
 
-        this.isSimulating = false;
+        // Full Time Evaluation
+        let allWon = true;
 
-        // Process outcomes
-        if (this.simWinAmount > 0) {
-            this.simWinAmount = Math.round(this.simWinAmount);
+        this.simLegStates.forEach(leg => {
+            let isLegWon = false;
+            const totalGoals = leg.homeScore + leg.awayScore;
+
+            if (leg.market === '1x2') {
+                if (leg.homeScore > leg.awayScore && leg.pick === 'home') isLegWon = true;
+                else if (leg.awayScore > leg.homeScore && leg.pick === 'away') isLegWon = true;
+                else if (leg.homeScore === leg.awayScore && leg.pick === 'draw') isLegWon = true;
+            } else if (leg.market === 'ou') {
+                if (totalGoals > 2 && leg.pick === 'over') isLegWon = true;
+                if (totalGoals < 3 && leg.pick === 'under') isLegWon = true;
+            } else if (leg.market === 'btts') {
+                const bothScored = leg.homeScore > 0 && leg.awayScore > 0;
+                if (bothScored && leg.pick === 'yes') isLegWon = true;
+                if (!bothScored && leg.pick === 'no') isLegWon = true;
+            }
+
+            // Rate On guarantee boost
+            if (rateOn && Math.random() < 0.65) {
+                isLegWon = true;
+            }
+
+            leg.status = isLegWon ? 'won' : 'lost';
+            if (!isLegWon) allWon = false;
+        });
+
+        const totalMultiplier = this.calculateTotalMultiplier();
+
+        if (allWon) {
             this.simResult = 'win';
-            
-            financeManager.addIncome(this.simWinAmount, 'Investasi', `Tiket Multi-Bet: ${wonLegsCount}/${this.selectedLegs.length} Tembus`);
+            this.simWinAmount = Math.round(betAmount * totalMultiplier);
+            financeManager.addIncome(this.simWinAmount, 'Investasi', `Tiket Parlay Sepak Bola (${this.selectedLegs.length} Leg) Tembus!`);
             this.onBalanceRefresh?.();
 
-            // Reset Rate plays on win
             gameState.set('casino.ratePlays', 0);
             pixiEffects.celebrateWin({
                 amount: this.simWinAmount,
-                type: wonLegsCount >= 3 ? 'mega' : 'big',
+                type: this.selectedLegs.length >= 4 ? 'jackpot' : 'mega',
                 onComplete: () => this.onBalanceRefresh?.()
             });
-            ui.success(`MULTI-BET SELESAI! ${wonLegsCount} tembus, menang +${financeManager.formatCurrency(this.simWinAmount)} TC!`, '🎰 Win!');
+
             import('../ui/AuraSound.js').then(m => m.default.playCasinoWin());
+            ui.success(`PARLAY TEMBUS! Menang +${financeManager.formatCurrency(this.simWinAmount)} TC (${totalMultiplier.toFixed(2)}x)!`, '🏆 Parlay Win');
         } else {
             this.simResult = 'lose';
-            ui.toast({ type: 'warning', title: 'Taruhan Kalah', message: 'Semua taruhan di tiket gagal!' });
             import('../ui/AuraSound.js').then(m => m.default.playCasinoLose());
+            ui.toast({ type: 'warning', title: 'Parlay Kalah', message: 'Tiket gagal karena ada pertandingan yang meleset.' });
         }
 
-        // Clean up ticket
+        this.isSimulating = false;
+        this.refreshSimulationConsole();
+
+        // Clear slip selections
         this.selectedLegs = [];
 
-        // Generate new matches for the next round
-        this.generateMatches();
-        
+        // Regenerate fixtures for next round
+        this.generateFixtureList();
+
         const root = document.getElementById('casino-game-panel');
         if (root) {
             this.refreshUI(root);
-            // Ensure scoreboard remains visible at the end of simulation
-            const consoleBox = document.getElementById('parlay-sim-console');
-            if (consoleBox) consoleBox.style.display = 'block';
+            const arenaAgain = document.getElementById('parlay-broadcast-arena');
+            if (arenaAgain) arenaAgain.style.display = 'block';
         }
-    }
-
-    async simulateFootballLeg(leg, rateOn) {
-        // Match simulation score steps
-        const scoreSteps = [
-            "10' | 0 - 0",
-            "34' | 0 - 0",
-            "65' | 0 - 0",
-            "88' | 0 - 0"
-        ];
-
-        // Determine outcome
-        let outcome = 'draw';
-        const roll = Math.random();
-        
-        if (rateOn) {
-            if (Math.random() < 0.80) {
-                outcome = leg.prediction;
-            } else {
-                outcome = roll < 0.4 ? 'home' : (roll < 0.7 ? 'away' : 'draw');
-            }
-        } else {
-            outcome = roll < 0.4 ? 'home' : (roll < 0.7 ? 'away' : 'draw');
-        }
-
-        let finalScore = '0 - 0';
-        if (outcome === 'home') finalScore = '2 - 1';
-        else if (outcome === 'away') finalScore = '0 - 1';
-        else finalScore = '1 - 1';
-
-        // Animate scoreboard
-        for (const step of scoreSteps) {
-            await new Promise(r => setTimeout(r, 600));
-            leg.details = step;
-            this.refreshUIFromSimulation();
-        }
-
-        const isWon = outcome === leg.prediction;
-        leg.details = `FT | ${finalScore}`;
-        return isWon;
-    }
-
-    async simulateHorseLeg(leg, rateOn) {
-        const steps = [
-            '🐎 100m...',
-            '🐎 300m...',
-            '🐎 500m...',
-            '🐎 Garis Finish!'
-        ];
-
-        for (const step of steps) {
-            await new Promise(r => setTimeout(r, 600));
-            leg.details = step;
-            this.refreshUIFromSimulation();
-        }
-
-        // Determine winner
-        let winner = HORSES[0].name;
-        
-        if (rateOn) {
-            if (Math.random() < 0.80) {
-                winner = leg.prediction;
-            } else {
-                const totalChance = HORSES.reduce((sum, h) => sum + h.winChance, 0);
-                let roll = Math.random() * totalChance;
-                for (const h of HORSES) {
-                    if (roll < h.winChance) {
-                        winner = h.name;
-                        break;
-                    }
-                    roll -= h.winChance;
-                }
-            }
-        } else {
-            const totalChance = HORSES.reduce((sum, h) => sum + h.winChance, 0);
-            let roll = Math.random() * totalChance;
-            for (const h of HORSES) {
-                if (roll < h.winChance) {
-                    winner = h.name;
-                    break;
-                }
-                roll -= h.winChance;
-            }
-        }
-
-        const isWon = winner === leg.prediction;
-        leg.details = `Pemenang: ${winner.replace('🐎 ', '')}`;
-        return isWon;
-    }
-
-    async simulateRandomLeg(leg, rateOn) {
-        await new Promise(r => setTimeout(r, 800));
-
-        const winChance = 1.35 / leg.odds; 
-        let rolledSuccess = false;
-
-        if (rateOn) {
-            rolledSuccess = Math.random() < Math.min(0.85, winChance * 6.0);
-        } else {
-            rolledSuccess = Math.random() < winChance;
-        }
-
-        leg.details = rolledSuccess ? 'Roll: Berhasil!' : 'Roll: Gagal';
-        return rolledSuccess;
     }
 }
-

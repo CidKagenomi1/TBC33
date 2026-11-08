@@ -6,7 +6,7 @@
 import { getMahjongSVG } from './MahjongSymbols.js';
 
 const createSVG = (content) => `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));">
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));">
     ${content}
 </svg>
 `;
@@ -167,6 +167,86 @@ const SVG_DICTIONARY = {
         <polygon points="50,10 90,50 50,90 10,50" fill="#2dd4bf" stroke="#0f766e" stroke-width="4"/>
         <polygon points="50,20 80,50 50,80 20,50" fill="#99f6e4"/>
         <circle cx="50" cy="50" r="10" fill="#ccfbf1"/>
+    `),
+    '⏳': createSVG(`
+        <defs>
+            <linearGradient id="hgGold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fef08a" />
+                <stop offset="50%" stop-color="#eab308" />
+                <stop offset="100%" stop-color="#a16207" />
+            </linearGradient>
+            <linearGradient id="hgSand" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#fde047" />
+                <stop offset="100%" stop-color="#ca8a04" />
+            </linearGradient>
+        </defs>
+        <rect x="20" y="10" width="60" height="8" rx="3" fill="url(#hgGold)" stroke="#78350f" stroke-width="2"/>
+        <rect x="20" y="82" width="60" height="8" rx="3" fill="url(#hgGold)" stroke="#78350f" stroke-width="2"/>
+        <path d="M26,18 Q50,48 50,50 Q50,52 26,82 L74,82 Q50,52 50,50 Q50,48 74,18 Z" fill="rgba(186,230,253,0.3)" stroke="url(#hgGold)" stroke-width="2.5"/>
+        <polygon points="32,22 68,22 53,44 47,44" fill="url(#hgSand)"/>
+        <line x1="50" y1="46" x2="50" y2="62" stroke="#fef08a" stroke-width="2" stroke-dasharray="2,2"/>
+        <polygon points="32,80 68,80 50,62" fill="url(#hgSand)"/>
+    `),
+    '💍': createSVG(`
+        <defs>
+            <radialGradient id="rubyGrad" cx="40%" cy="40%" r="60%">
+                <stop offset="0%" stop-color="#fecdd3" />
+                <stop offset="40%" stop-color="#f43f5e" />
+                <stop offset="80%" stop-color="#be123c" />
+                <stop offset="100%" stop-color="#881337" />
+            </radialGradient>
+            <linearGradient id="ringGold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fef08a" />
+                <stop offset="60%" stop-color="#eab308" />
+                <stop offset="100%" stop-color="#92400e" />
+            </linearGradient>
+        </defs>
+        <ellipse cx="50" cy="62" rx="28" ry="24" fill="none" stroke="url(#ringGold)" stroke-width="9"/>
+        <ellipse cx="50" cy="62" rx="28" ry="24" fill="none" stroke="#fef08a" stroke-width="2" opacity="0.6"/>
+        <polygon points="38,40 62,40 58,46 42,46" fill="#ca8a04"/>
+        <polygon points="50,15 68,32 50,45 32,32" fill="url(#rubyGrad)" stroke="#fda4af" stroke-width="1.5"/>
+        <polygon points="50,15 68,32 50,30 32,32" fill="#fda4af" opacity="0.4"/>
+        <polygon points="50,22 58,30 50,38 42,30" fill="#fff" opacity="0.5"/>
+    `),
+    '🏆': createSVG(`
+        <defs>
+            <linearGradient id="chaliceGold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fef08a" />
+                <stop offset="40%" stop-color="#fbbf24" />
+                <stop offset="80%" stop-color="#d97706" />
+                <stop offset="100%" stop-color="#92400e" />
+            </linearGradient>
+            <radialGradient id="gemNectar" cx="50%" cy="30%" r="50%">
+                <stop offset="0%" stop-color="#38bdf8" />
+                <stop offset="100%" stop-color="#0369a1" />
+            </radialGradient>
+        </defs>
+        <path d="M25,18 C25,50 42,62 50,62 C58,62 75,50 75,18 Z" fill="url(#chaliceGold)" stroke="#78350f" stroke-width="2.5"/>
+        <ellipse cx="50" cy="18" rx="25" ry="7" fill="url(#gemNectar)"/>
+        <rect x="46" y="62" width="8" height="18" fill="url(#chaliceGold)" stroke="#78350f" stroke-width="2"/>
+        <path d="M30,86 L70,86 L64,78 L36,78 Z" fill="url(#chaliceGold)" stroke="#78350f" stroke-width="2"/>
+        <path d="M25,25 C12,25 10,45 25,48" fill="none" stroke="url(#chaliceGold)" stroke-width="4" stroke-linecap="round"/>
+        <path d="M75,25 C88,25 90,45 75,48" fill="none" stroke="url(#chaliceGold)" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="50" cy="38" r="5" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/>
+    `),
+    '🔮': createSVG(`
+        <defs>
+            <radialGradient id="orbGrad" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stop-color="#f5d0fe" />
+                <stop offset="35%" stop-color="#c084fc" />
+                <stop offset="70%" stop-color="#9333ea" />
+                <stop offset="100%" stop-color="#581c87" />
+            </radialGradient>
+            <linearGradient id="orbBase" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#eab308" />
+                <stop offset="50%" stop-color="#fef08a" />
+                <stop offset="100%" stop-color="#a16207" />
+            </linearGradient>
+        </defs>
+        <path d="M30,82 Q50,75 70,82 L75,88 Q50,84 25,88 Z" fill="url(#orbBase)" stroke="#78350f" stroke-width="1.5"/>
+        <circle cx="50" cy="46" r="32" fill="url(#orbGrad)" stroke="#d8b4fe" stroke-width="2"/>
+        <circle cx="40" cy="34" r="8" fill="#ffffff" opacity="0.55"/>
+        <path d="M36,54 Q50,42 62,50" fill="none" stroke="#f0abfc" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
     `)
 };
 

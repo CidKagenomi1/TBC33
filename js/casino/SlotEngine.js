@@ -283,7 +283,11 @@ export class SlotEngine {
                     cols: 6,
                     rows: 3,
                     symbols: SYMBOLS,
-                    themeColor: 0xfbbf24
+                    themeColor: 0xfbbf24,
+                    getSymbolSvg: (item) => getSlotSVG(item)
+                });
+                this.pixiStage.preloadTextures().then(() => {
+                    this.pixiStage?.setGrid(this.grid);
                 });
                 this.pixiStage.setGrid(this.grid);
                 canvas.style.display = 'block';

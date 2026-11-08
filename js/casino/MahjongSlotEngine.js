@@ -81,8 +81,13 @@ export class MahjongSlotEngine {
         this.isSpeedUp = false;
         this.skipRequested = false;
         this.pixiStage = null;
-        // Matrix 6x3
-        this.grid = Array.from({length: 6}, () => Array(8).fill('🀫'));
+        // Matrix 6x8 with lively initial Mahjong tiles
+        this.grid = Array.from({length: 6}, () => 
+            Array.from({length: 8}, () => {
+                const s = SYMBOLS[Math.floor(Math.random() * (SYMBOLS.length - 1)) + 1]; // avoid all wild
+                return { emoji: s.emoji, isGold: Math.random() < 0.2, isWild: false };
+            })
+        );
     }
 
     getRateStatusHTML() {
@@ -298,7 +303,11 @@ export class MahjongSlotEngine {
                     cols: 6,
                     rows: 8,
                     symbols: SYMBOLS,
-                    themeColor: 0xef4444
+                    themeColor: 0xef4444,
+                    getSymbolSvg: (item) => getMahjongSVG(item)
+                });
+                this.pixiStage.preloadTextures().then(() => {
+                    this.pixiStage?.setGrid(this.grid);
                 });
                 this.pixiStage.setGrid(this.grid);
                 canvas.style.display = 'block';

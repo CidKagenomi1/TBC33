@@ -16,12 +16,23 @@ import mobileHandler from '../ui/MobileHandler.js';
 import casinoVolatility from './CasinoVolatilityEngine.js';
 
 const SYMBOLS = [
-    { emoji: '👑', name: 'Mahkota Zeus', baseWeight: 4,  multiplier3x: 50, multiplier2x: 0 },
-    { emoji: '⚡', name: 'Petir',       baseWeight: 8,  multiplier3x: 25, multiplier2x: 0 },
-    { emoji: '🏛️', name: 'Kuil',        baseWeight: 12, multiplier3x: 10,  multiplier2x: 0 },
-    { emoji: '🏺', name: 'Vas Suci',    baseWeight: 18, multiplier3x: 5,  multiplier2x: 0 },
-    { emoji: '🧿', name: 'Mata Biru',   baseWeight: 25, multiplier3x: 3,  multiplier2x: 0 },
-    { emoji: '💠', name: 'Batu Permata',baseWeight: 32, multiplier3x: 1,  multiplier2x: 0 },
+    // Simbol Premium Tertinggi
+    { emoji: '👑', name: 'Mahkota Zeus',     baseWeight: 4,  multiplier3x: 50, multiplier2x: 0 },
+    { emoji: '⏳', name: 'Jam Pasir Waktu',  baseWeight: 6,  multiplier3x: 25, multiplier2x: 0 },
+    { emoji: '💍', name: 'Cincin Delima',    baseWeight: 8,  multiplier3x: 15, multiplier2x: 0 },
+    { emoji: '🏆', name: 'Cawan Emas',       baseWeight: 10, multiplier3x: 12, multiplier2x: 0 },
+    
+    // Simbol Menengah (Artefak Olympus)
+    { emoji: '🏛️', name: 'Kuil Olympus',     baseWeight: 14, multiplier3x: 8,  multiplier2x: 0 },
+    { emoji: '🏺', name: 'Vas Suci',         baseWeight: 18, multiplier3x: 5,  multiplier2x: 0 },
+    
+    // Simbol Permata Rendah
+    { emoji: '🔮', name: 'Permata Ungu',     baseWeight: 22, multiplier3x: 4,  multiplier2x: 0 },
+    { emoji: '🧿', name: 'Mata Biru',        baseWeight: 26, multiplier3x: 3,  multiplier2x: 0 },
+    { emoji: '💠', name: 'Batu Permata',     baseWeight: 30, multiplier3x: 2,  multiplier2x: 0 },
+
+    // Simbol Scatter Zeus (4+ di mana saja memicu bayaran scatter & petir)
+    { emoji: '⚡', name: 'Petir Zeus',       baseWeight: 4,  multiplier3x: 20, multiplier2x: 0, isScatter: true },
 ];
 
 const PAYLINES = [
@@ -211,13 +222,13 @@ export class ZeusSlotEngine {
                     </div>
                     <div style="max-height:55vh; overflow-y:auto; padding-right:0.25rem;">
                         <p style="font-size:0.75rem; color:rgba(255,255,255,0.7); margin-bottom:0.75rem; text-align:left;">
-                            6 Kolom, 5 Baris &amp; 7 Garis Payout Olympus. Simbol cocok dihitung dari kiri ke kanan.
+                            6 Kolom &amp; 5 Baris Scatter Pays (8+ simbol kembar di mana saja meledak runtuh). Simbol Petir ⚡ memicu Scatter Bounty (4+ di layar)!
                         </p>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem;">
                             ${SYMBOLS.map(s => `
                             <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); padding:0.45rem 0.6rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                                 <span style="font-size:0.8rem; font-weight:700;">${s.emoji} ${s.name}</span>
-                                <span style="color:#38bdf8; font-weight:800; font-size:0.75rem;">3x:${s.multiplier3x}×</span>
+                                <span style="color:#38bdf8; font-weight:800; font-size:0.75rem;">${s.isScatter ? '4x:' + s.multiplier3x + '×' : '8+:' + s.multiplier3x + '×'}</span>
                             </div>`).join('')}
                         </div>
                     </div>
@@ -296,7 +307,11 @@ export class ZeusSlotEngine {
                     cols: 6,
                     rows: 5,
                     symbols: SYMBOLS,
-                    themeColor: 0x38bdf8
+                    themeColor: 0x38bdf8,
+                    getSymbolSvg: (item) => getSlotSVG(item)
+                });
+                this.pixiStage.preloadTextures().then(() => {
+                    this.pixiStage?.setGrid(this.grid);
                 });
                 this.pixiStage.setGrid(this.grid);
                 canvas.style.display = 'block';
@@ -505,6 +520,107 @@ export class ZeusSlotEngine {
             valEl.style.textShadow = '0 0 8px #38bdf8';
             valEl.style.transform = 'scale(1)';
         }
+    }
+
+    /**
+     * Enforces authentic ZONK behavior:
+     * - Regular symbols capped at max 7 (requires 8+ to win)
+     * - Scatter (⚡) capped at max 3 (requires 4+ to win)
+     * - If isNearMiss: tease with exactly 7 crowns (👑) or 3 scatters (⚡) with 0 payout
+     */
+    _sanitizeZonkGrid(matrix, isNearMiss = false, preserveSymbol = null, preserveCount = 8) {
+        const safeCandidates = SYMBOLS.filter(s => !s.isScatter).map(s => s.emoji);
+
+        if (isNearMiss) {
+            // Tease: Clear existing crowns & scatters first
+            for (let c = 0; c < 6; c++) {
+                for (let r = 0; r < 5; r++) {
+                    if (matrix[c][r] === '👑' || matrix[c][r] === '⚡') {
+                        matrix[c][r] = '🏛️';
+                    }
+                }
+            }
+            // Tease: 7 crowns (1 short of 8!)
+            const teaserSpots = [
+                { c: 0, r: 1 }, { c: 1, r: 3 }, { c: 2, r: 0 },
+                { c: 3, r: 4 }, { c: 4, r: 2 }, { c: 5, r: 1 }, { c: 2, r: 3 }
+            ];
+            teaserSpots.forEach(pt => {
+                matrix[pt.c][pt.r] = '👑';
+            });
+        }
+
+        // Iteratively ensure no symbol exceeds limit:
+        // regular symbols < 8 (max 7), scatter < 4 (max 3)
+        let modified = true;
+        let passes = 0;
+        while (modified && passes < 12) {
+            modified = false;
+            passes++;
+            
+            // Count all symbols
+            const counts = {};
+            for (let c = 0; c < 6; c++) {
+                for (let r = 0; r < 5; r++) {
+                    const s = matrix[c][r];
+                    counts[s] = (counts[s] || 0) + 1;
+                }
+            }
+
+            for (let c = 0; c < 6; c++) {
+                for (let r = 0; r < 5; r++) {
+                    // Do not replace near-miss teaser crowns
+                    if (isNearMiss && matrix[c][r] === '👑') continue;
+
+                    const sym = matrix[c][r];
+                    if (preserveSymbol && sym === preserveSymbol) {
+                        if ((counts[sym] || 0) > preserveCount) {
+                            const replacement = safeCandidates.find(cand => cand !== sym && cand !== preserveSymbol && (counts[cand] || 0) < 5) 
+                                || safeCandidates[0];
+                            counts[sym]--;
+                            counts[replacement] = (counts[replacement] || 0) + 1;
+                            matrix[c][r] = replacement;
+                            modified = true;
+                        }
+                        continue;
+                    }
+
+                    const limit = (sym === '⚡') ? 3 : 7;
+                    if ((counts[sym] || 0) > limit) {
+                        // Find a replacement candidate that currently has count <= 4
+                        const replacement = safeCandidates.find(cand => cand !== sym && cand !== preserveSymbol && (counts[cand] || 0) < 5) 
+                            || safeCandidates[Math.floor(Math.random() * safeCandidates.length)];
+                        
+                        counts[sym]--;
+                        counts[replacement] = (counts[replacement] || 0) + 1;
+                        matrix[c][r] = replacement;
+                        modified = true;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Seeds a controlled cluster of symbols into the grid
+     */
+    _seedCluster(matrix, symbolPool, count) {
+        const chosen = symbolPool[Math.floor(Math.random() * symbolPool.length)];
+        const allPositions = [];
+        for (let c = 0; c < 6; c++) {
+            for (let r = 0; r < 5; r++) {
+                allPositions.push({ c, r });
+            }
+        }
+        for (let i = allPositions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allPositions[i], allPositions[j]] = [allPositions[j], allPositions[i]];
+        }
+        for (let i = 0; i < count; i++) {
+            const pos = allPositions[i];
+            matrix[pos.c][pos.r] = chosen;
+        }
+        this._sanitizeZonkGrid(matrix, false, chosen, count);
     }
 
     weightedRandom(luck, betAmount = 0) {
@@ -778,34 +894,21 @@ export class ZeusSlotEngine {
             resultMatrix.push(colSymbols);
         }
 
-        // Apply Near-Miss Harapan Palsu setup: Exactly 7 crowns (👑) scattered on 6x5 grid (1 short of 8!)
-        if (evalResult.isNearMiss) {
-            // Clear crowns first
-            for (let c = 0; c < 6; c++) {
-                for (let r = 0; r < 5; r++) {
-                    if (resultMatrix[c][r] === '👑') resultMatrix[c][r] = '🏛️';
-                }
+        // Shape outcomes based on Casino Volatility Director
+        if (evalResult.targetOutcome === 'ZONK') {
+            this._sanitizeZonkGrid(resultMatrix, evalResult.isNearMiss);
+        } else if (evalResult.targetOutcome === 'TRICKLE') {
+            this._seedCluster(resultMatrix, ['💠', '🧿', '🔮'], 8);
+        } else if (evalResult.targetOutcome === 'PROFIT') {
+            this._seedCluster(resultMatrix, ['🏺', '🏛️', '🏆', '💍'], Math.random() < 0.6 ? 8 : 10);
+        } else if (evalResult.targetOutcome === 'ERUPTION') {
+            if (Math.random() < 0.35) {
+                this._seedCluster(resultMatrix, ['⚡'], 4); // 4 Zeus Scatters
+            } else {
+                this._seedCluster(resultMatrix, ['👑', '⏳', '💍'], 10);
             }
-            // Scatter exactly 7 crowns
-            const spots = [
-                { c: 0, r: 1 }, { c: 1, r: 3 }, { c: 2, r: 0 },
-                { c: 3, r: 4 }, { c: 4, r: 2 }, { c: 5, r: 1 }, { c: 2, r: 3 }
-            ];
-            spots.forEach(pt => {
-                resultMatrix[pt.c][pt.r] = '👑';
-            });
-        } else if (evalResult.targetOutcome === 'ZONK') {
-            // Count symbols and cap to max 7 so no 8+ cluster forms
-            const counts = {};
-            for (let c = 0; c < 6; c++) {
-                for (let r = 0; r < 5; r++) {
-                    const s = resultMatrix[c][r];
-                    counts[s] = (counts[s] || 0) + 1;
-                    if (counts[s] >= 8) {
-                        resultMatrix[c][r] = (s === '💠') ? '🧿' : '💠';
-                    }
-                }
-            }
+        } else if (evalResult.isNearMiss) {
+            this._sanitizeZonkGrid(resultMatrix, true);
         }
 
         this.grid = resultMatrix;
@@ -838,7 +941,7 @@ export class ZeusSlotEngine {
         }
 
         // Evaluate result with Cascading Tumble chain reaction
-        await this._processTumbleSequence(betAmount, luck);
+        await this._processTumbleSequence(betAmount, luck, evalResult, rateOn);
 
         this.isSpinning = false;
         if (spinBtn) {
@@ -953,7 +1056,7 @@ export class ZeusSlotEngine {
         };
     }
 
-    async _processTumbleSequence(betAmount, luck) {
+    async _processTumbleSequence(betAmount, luck, evalResult = {}, rateOn = false) {
         const winDisplay = document.getElementById('slot-win-display');
         const lineBet = betAmount / 5;
         let totalPayout = 0;
@@ -977,18 +1080,28 @@ export class ZeusSlotEngine {
                 break;
             }
 
-            // Signature Mechanic: Zeus Thunder Strike Multiplier Orb chance on winning tumbles (40% chance)
-            const isZeusStrike = Math.random() < 0.40;
+            // Signature Mechanic: Zeus Thunder Strike Multiplier Orb chance on winning tumbles
+            // Rebalanced: 18% in normal spins, 50% during ERUPTION/Rate ON, 5% in TRICKLE
+            const isEruption = evalResult?.targetOutcome === 'ERUPTION' || rateOn;
+            const isTrickle = evalResult?.targetOutcome === 'TRICKLE';
+            const strikeBaseChance = isEruption ? 0.50 : (isTrickle ? 0.05 : 0.18);
+            const isZeusStrike = Math.random() < strikeBaseChance;
             let orbValue = 0;
             if (isZeusStrike) {
                 const orbRoll = Math.random();
-                if (orbRoll < 0.35) orbValue = 2;
-                else if (orbRoll < 0.60) orbValue = 3;
-                else if (orbRoll < 0.80) orbValue = 5;
-                else if (orbRoll < 0.90) orbValue = 10;
-                else if (orbRoll < 0.96) orbValue = 25;
-                else if (orbRoll < 0.99) orbValue = 50;
-                else orbValue = 100;
+                if (isEruption) {
+                    if (orbRoll < 0.25) orbValue = 5;
+                    else if (orbRoll < 0.55) orbValue = 10;
+                    else if (orbRoll < 0.80) orbValue = 25;
+                    else if (orbRoll < 0.95) orbValue = 50;
+                    else orbValue = 100;
+                } else {
+                    if (orbRoll < 0.50) orbValue = 2;
+                    else if (orbRoll < 0.80) orbValue = 3;
+                    else if (orbRoll < 0.93) orbValue = 5;
+                    else if (orbRoll < 0.98) orbValue = 10;
+                    else orbValue = 25;
+                }
 
                 totalOlympusMultiplier += orbValue;
                 this.updateMultiplierMeter(totalOlympusMultiplier);
@@ -1041,7 +1154,12 @@ export class ZeusSlotEngine {
                 const needed = 5 - surviving.length;
                 const newSymbols = [];
                 for (let i = 0; i < needed; i++) {
-                    newSymbols.push(this.weightedRandom(luck, betAmount).emoji);
+                    if (isTrickle && cascadeRound >= 2) {
+                        const lowTierSafe = ['💠', '🧿', '🔮', '🏺', '🏛️'];
+                        newSymbols.push(lowTierSafe[Math.floor(Math.random() * lowTierSafe.length)]);
+                    } else {
+                        newSymbols.push(this.weightedRandom(luck, betAmount).emoji);
+                    }
                 }
                 newGrid.push([...newSymbols, ...surviving]);
             }

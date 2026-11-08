@@ -28,7 +28,7 @@ const GAME_CATALOG = {
     zeus: { id: 'zeus', name: 'Gates of Olympus', icon: '⚡', fullTitle: '⚡ Gates of Olympus (6x5)', reel: '6x5 REEL' },
     wheel: { id: 'wheel', name: 'Mega Wheel', icon: '🎡', fullTitle: '🎡 Mega Fortune Wheel', reel: 'INSTANT' },
     lottery: { id: 'lottery', name: 'Lotre 4D', icon: '🎫', fullTitle: '🎫 Lotre Mega Progresif 4D', reel: 'JACKPOT' },
-    parlay: { id: 'parlay', name: 'Parlay & Derby', icon: '🚀', fullTitle: '🚀 Parlay Sports & Derby', reel: 'MULTI-BET' }
+    parlay: { id: 'parlay', name: 'Parlay Bola', icon: '⚽', fullTitle: '⚽ Parlay Sepak Bola Eropa', reel: 'SPORTSBOOK' }
 };
 
 class GamblingPanel {

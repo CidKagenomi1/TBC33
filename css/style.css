@@ -802,20 +802,23 @@ body {
         flex-shrink: 1;
         min-width: 0;
         gap: 0.35rem;
+        flex-wrap: nowrap !important;
     }
     .balance-card-header {
-        padding: 0.25rem 0.5rem;
+        padding: 0.22rem 0.45rem;
         gap: 0.3rem;
         border-radius: 8px;
         min-width: 0;
         flex-shrink: 1;
+        height: 28px;
+        box-sizing: border-box;
     }
     .balance-card-header .chip-icon {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         flex-shrink: 0;
     }
     .balance-card-header .balance-val {
-        font-size: clamp(0.72rem, 3.2vw, 0.92rem);
+        font-size: clamp(0.7rem, 3.1vw, 0.88rem);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -823,12 +826,36 @@ body {
     .balance-card-header .balance-sub {
         display: none !important;
     }
+    .btn-rewards-hub,
     .btn-faucet {
-        padding: 0.28rem 0.5rem;
-        font-size: 0.72rem;
-        border-radius: 8px;
-        flex-shrink: 0;
-        white-space: nowrap;
+        padding: 0.22rem 0.45rem !important;
+        font-size: 0.7rem !important;
+        gap: 0.25rem !important;
+        height: 28px !important;
+        max-height: 28px !important;
+        border-radius: 8px !important;
+        flex-shrink: 0 !important;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.4) !important;
+        animation: none !important; /* Nonaktifkan scale pulse berlebihan di mobile */
+        white-space: nowrap !important;
+        box-sizing: border-box !important;
+    }
+    .btn-rewards-hub .hub-icon {
+        font-size: 0.82rem !important;
+        line-height: 1 !important;
+    }
+    .btn-rewards-hub .hub-text {
+        font-size: 0.68rem !important;
+        font-weight: 800 !important;
+        line-height: 1 !important;
+    }
+    .btn-rewards-hub .rewards-notification-badge {
+        top: -4px !important;
+        right: -4px !important;
+        min-width: 15px !important;
+        height: 15px !important;
+        font-size: 0.58rem !important;
+        padding: 0 2px !important;
     }
     .header-active-game-pill,
     .header-rate-container {
@@ -1948,9 +1975,11 @@ body.orientation-landscape.mobile-device {
         font-size: 0.82rem !important;
     }
 
+    .btn-rewards-hub,
     .btn-faucet {
         padding: 0.15rem 0.45rem !important;
         font-size: 0.68rem !important;
+        height: 26px !important;
     }
 
     /* Viewport bounds */
@@ -2219,16 +2248,16 @@ body.orientation-landscape.mobile-device {
     background: linear-gradient(135deg, #10b981, #059669);
     color: #ffffff;
     border: 1px solid rgba(16, 185, 129, 0.4);
-    box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 0.85rem;
+    gap: 0.35rem;
+    padding: 0.32rem 0.65rem;
     font-weight: 800;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     border-radius: 9999px;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
 }
 
@@ -3007,739 +3036,3 @@ body.orientation-landscape.mobile-device {
         transform: scale(1.2);
     }
 }
-
-/* ── VIP Rewards Hub Pill (Top Bar) ── */
-.btn-rewards-hub {
-    position: relative;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: #ffffff;
-    border: 1px solid rgba(16, 185, 129, 0.4);
-    box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 0.85rem;
-    font-weight: 800;
-    font-size: 0.82rem;
-    border-radius: 9999px;
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    white-space: nowrap;
-}
-
-.btn-rewards-hub.hub-ready {
-    background: linear-gradient(135deg, #10b981, #047857);
-    box-shadow: 0 0 16px rgba(16, 185, 129, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-    animation: hubPulseReady 2s infinite ease-in-out;
-}
-
-@keyframes hubPulseReady {
-    0%, 100% {
-        box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 22px rgba(16, 185, 129, 0.85), 0 0 8px rgba(251, 191, 36, 0.6);
-        transform: scale(1.03);
-    }
-}
-
-.btn-rewards-hub.hub-cooldown {
-    background: rgba(30, 27, 40, 0.85);
-    color: #f59e0b;
-    border-color: rgba(245, 158, 11, 0.35);
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
-}
-
-.btn-rewards-hub.hub-alert {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    color: #fff;
-    border-color: #f87171;
-    box-shadow: 0 0 18px rgba(239, 68, 68, 0.8);
-    animation: hubAlertBlink 1s infinite alternate;
-}
-
-@keyframes hubAlertBlink {
-    0% { transform: scale(1); box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
-    100% { transform: scale(1.05); box-shadow: 0 0 25px rgba(239, 68, 68, 0.95); }
-}
-
-.btn-rewards-hub:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.1);
-}
-
-.rewards-notification-badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    background: linear-gradient(135deg, #ef4444, #f43f5e);
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 900;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #0f0c18;
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
-    animation: badgePop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes badgePop {
-    from { transform: scale(0); }
-    to { transform: scale(1); }
-}
-
-/* ── VIP Rewards & Quest Center Modal Overlay ── */
-.vip-rewards-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    background: rgba(8, 6, 12, 0.82);
-    backdrop-filter: blur(10px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.vip-rewards-overlay.open {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.vip-rewards-dialog {
-    background: linear-gradient(180deg, #181424 0%, #100d18 100%);
-    border: 1px solid rgba(251, 191, 36, 0.3);
-    border-top: 2px solid rgba(251, 191, 36, 0.7);
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 40px rgba(251, 191, 36, 0.12);
-    border-radius: 20px;
-    width: 100%;
-    max-width: 620px;
-    max-height: 88vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    color: #ffffff;
-    font-family: 'Outfit', sans-serif;
-    transform: scale(0.95);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.vip-rewards-overlay.open .vip-rewards-dialog {
-    transform: scale(1);
-}
-
-/* Header */
-.rewards-dialog-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.25rem 1.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.rewards-title-box {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-}
-
-.rewards-header-icon {
-    font-size: 1.8rem;
-    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.5));
-}
-
-.rewards-modal-title {
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 900;
-    letter-spacing: 0.05em;
-    background: linear-gradient(135deg, #fbbf24, #f59e0b);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.rewards-modal-sub {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
-    display: block;
-    margin-top: 2px;
-}
-
-.btn-rewards-close {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.7);
-    border-radius: 50%;
-    width: 34px;
-    height: 34px;
-    font-size: 1.3rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    line-height: 1;
-}
-
-.btn-rewards-close:hover {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: #ef4444;
-    color: #fff;
-    transform: scale(1.08);
-}
-
-/* Tabs Bar */
-.rewards-tabs-bar {
-    display: flex;
-    gap: 0.4rem;
-    padding: 0.75rem 1.25rem;
-    background: rgba(0, 0, 0, 0.25);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    overflow-x: auto;
-}
-
-.rewards-tab-btn {
-    position: relative;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.65);
-    padding: 0.5rem 0.9rem;
-    border-radius: 10px;
-    font-size: 0.76rem;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    white-space: nowrap;
-}
-
-.rewards-tab-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-}
-
-.rewards-tab-btn.active {
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));
-    border-color: rgba(251, 191, 36, 0.6);
-    color: #fbbf24;
-    box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
-}
-
-.tab-mini-badge {
-    background: #ef4444;
-    color: #fff;
-    font-size: 0.62rem;
-    font-weight: 900;
-    padding: 1px 6px;
-    border-radius: 999px;
-    line-height: 1.2;
-}
-
-/* Scrollable Body */
-.rewards-dialog-body {
-    padding: 1.25rem;
-    overflow-y: auto;
-    flex: 1;
-}
-
-/* Cards */
-.rewards-section-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 1.1rem;
-}
-
-.reward-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    padding: 1rem 1.15rem;
-    transition: border-color 0.2s, background 0.2s;
-}
-
-.reward-card:hover {
-    background: rgba(255, 255, 255, 0.04);
-}
-
-.faucet-card {
-    border-left: 4px solid #10b981;
-}
-
-.bailout-card {
-    border-left: 4px solid rgba(255, 255, 255, 0.2);
-    opacity: 0.7;
-}
-
-.bailout-card.bailout-active {
-    border-left: 4px solid #ef4444;
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.4);
-    opacity: 1;
-    animation: bailoutPulse 2s infinite alternate;
-}
-
-@keyframes bailoutPulse {
-    0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
-    100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.5); }
-}
-
-.streak-card {
-    border-left: 4px solid #fbbf24;
-}
-
-.reward-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-}
-
-.reward-card-badge {
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.badge-danger {
-    color: #ef4444;
-}
-
-.reward-timer-status {
-    font-weight: 800;
-}
-
-.reward-card-content {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    margin-bottom: 0.85rem;
-}
-
-.reward-icon-box {
-    font-size: 2.2rem;
-    width: 52px;
-    height: 52px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.reward-info-box {
-    flex: 1;
-}
-
-.reward-name {
-    margin: 0 0 3px 0;
-    font-size: 0.98rem;
-    font-weight: 800;
-    color: #ffffff;
-}
-
-.reward-desc {
-    margin: 0;
-    font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.65);
-    line-height: 1.35;
-}
-
-.reward-chips-val {
-    font-size: 1.05rem;
-    font-weight: 900;
-    color: #34d399;
-    margin-top: 4px;
-    font-family: 'Rajdhani', sans-serif;
-    letter-spacing: 0.03em;
-}
-
-.reward-card-actions {
-    display: flex;
-    width: 100%;
-}
-
-.btn-claim-action {
-    width: 100%;
-    padding: 0.65rem 1rem;
-    font-size: 0.88rem;
-    font-weight: 800;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: #fff;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
-    transition: all 0.2s;
-}
-
-.btn-claim-action:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.55);
-}
-
-.btn-cooldown {
-    background: rgba(255, 255, 255, 0.06) !important;
-    color: rgba(255, 255, 255, 0.4) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: none !important;
-    cursor: not-allowed !important;
-}
-
-.btn-bailout-action {
-    width: 100%;
-    padding: 0.65rem 1rem;
-    font-size: 0.88rem;
-    font-weight: 800;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    color: #fff;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
-}
-
-.btn-bailout-action:disabled {
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: none;
-    cursor: not-allowed;
-}
-
-/* Streak Calendar */
-.streak-intro {
-    font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.65);
-    margin: 0 0 0.85rem 0;
-    line-height: 1.4;
-}
-
-.streak-calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 0.4rem;
-}
-
-.streak-day-box {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 0.55rem 0.2rem;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    transition: all 0.2s;
-}
-
-.streak-day-box .day-label {
-    font-size: 0.62rem;
-    font-weight: 800;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-.streak-day-box .day-icon {
-    font-size: 1.15rem;
-}
-
-.streak-day-box .day-reward-chips {
-    font-size: 0.72rem;
-    font-weight: 900;
-    color: #34d399;
-}
-
-.streak-day-box .day-bonus-text {
-    font-size: 0.54rem;
-    color: #fbbf24;
-    line-height: 1.1;
-    font-weight: 700;
-}
-
-.streak-day-box .day-status-pill {
-    font-size: 0.52rem;
-    font-weight: 800;
-    padding: 1px 4px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.5);
-    margin-top: 2px;
-}
-
-.streak-day-box.is-past {
-    background: rgba(16, 185, 129, 0.08);
-    border-color: rgba(16, 185, 129, 0.3);
-}
-
-.streak-day-box.is-past .day-status-pill {
-    background: rgba(16, 185, 129, 0.25);
-    color: #34d399;
-}
-
-.streak-day-box.is-current {
-    background: linear-gradient(180deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.08));
-    border-color: #fbbf24;
-    box-shadow: 0 0 12px rgba(251, 191, 36, 0.3);
-    transform: scale(1.04);
-}
-
-.streak-day-box.is-current .day-status-pill {
-    background: #fbbf24;
-    color: #000;
-}
-
-.streak-day-box.is-grand {
-    border-color: rgba(236, 72, 153, 0.4);
-    background: linear-gradient(180deg, rgba(236, 72, 153, 0.12), rgba(255, 255, 255, 0.02));
-}
-
-.streak-day-box.is-grand .day-reward-chips {
-    color: #f472b6;
-}
-
-.btn-streak-action {
-    width: 100%;
-    padding: 0.65rem 1rem;
-    font-size: 0.88rem;
-    font-weight: 800;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #fbbf24, #d97706);
-    color: #1a1002;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(251, 191, 36, 0.35);
-    transition: all 0.2s;
-}
-
-.btn-streak-action:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(251, 191, 36, 0.55);
-}
-
-.btn-streak-action:disabled {
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.4);
-    box-shadow: none;
-    cursor: not-allowed;
-}
-
-/* Quests & Achievements Lists */
-.quests-header-notice {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding: 0.85rem 1rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    margin-bottom: 1rem;
-}
-
-.notice-icon {
-    font-size: 1.6rem;
-}
-
-.notice-title {
-    font-weight: 800;
-    font-size: 0.88rem;
-    color: #fff;
-}
-
-.notice-sub {
-    font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin-top: 2px;
-}
-
-.quests-list,
-.achievements-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.quest-row,
-.achievement-row {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 0.85rem 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    transition: all 0.2s;
-}
-
-.quest-row.quest-ready,
-.achievement-row.ach-ready {
-    border-color: rgba(251, 191, 36, 0.5);
-    background: linear-gradient(90deg, rgba(251, 191, 36, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-    box-shadow: 0 0 15px rgba(251, 191, 36, 0.15);
-}
-
-.quest-row.quest-claimed,
-.achievement-row.ach-claimed {
-    opacity: 0.55;
-    background: rgba(0, 0, 0, 0.25);
-}
-
-.quest-icon-col,
-.ach-icon-col {
-    font-size: 1.8rem;
-    width: 44px;
-    height: 44px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.quest-info-col,
-.ach-info-col {
-    flex: 1;
-    min-width: 0;
-}
-
-.quest-top,
-.ach-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 3px;
-}
-
-.quest-title,
-.ach-title {
-    font-size: 0.88rem;
-    font-weight: 800;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.quest-reward-tag,
-.ach-reward-tag {
-    font-size: 0.78rem;
-    font-weight: 900;
-    color: #34d399;
-    background: rgba(16, 185, 129, 0.12);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    padding: 2px 7px;
-    border-radius: 6px;
-    flex-shrink: 0;
-}
-
-.quest-desc,
-.ach-desc {
-    font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.6);
-    line-height: 1.3;
-    margin-bottom: 6px;
-}
-
-.quest-progress-box {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-}
-
-.quest-progress-bar {
-    flex: 1;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 999px;
-    overflow: hidden;
-}
-
-.quest-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #10b981, #34d399);
-    border-radius: 999px;
-    transition: width 0.3s ease;
-}
-
-.quest-progress-text {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.6);
-    flex-shrink: 0;
-}
-
-.quest-action-col,
-.ach-action-col {
-    flex-shrink: 0;
-}
-
-.btn-quest-claim,
-.btn-ach-claim {
-    background: linear-gradient(135deg, #fbbf24, #d97706);
-    color: #000;
-    font-weight: 900;
-    font-size: 0.75rem;
-    padding: 0.45rem 0.85rem;
-    border-radius: 8px;
-    cursor: pointer;
-    box-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
-    animation: hubPulseReady 1.5s infinite;
-}
-
-.btn-quest-claimed {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 0.68rem;
-    font-weight: 800;
-    padding: 0.35rem 0.65rem;
-    border-radius: 8px;
-    cursor: default;
-}
-
-.quest-in-progress {
-    font-size: 0.68rem;
-    font-weight: 800;
-    color: rgba(255, 255, 255, 0.35);
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 0.35rem 0.65rem;
-    border-radius: 8px;
-    text-align: center;
-}
-
-.ach-status-hint {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.5);
-    font-weight: 600;
-}
-
-/* Mobile Media Queries */
-@media (max-width: 640px) {
-    .vip-rewards-dialog {
-        max-height: 94vh;
-        border-radius: 16px;
-    }
-    .streak-calendar-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-    .streak-calendar-grid .streak-day-box:last-child {
-        grid-column: span 4;
-    }
-    .rewards-modal-title {
-        font-size: 1rem;
-    }
-}
-
-

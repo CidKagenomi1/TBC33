@@ -211,7 +211,7 @@ const MAHJONG_GLYPHS = {
             <circle cx="50" cy="45" r="7" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5"/>
 
             <!-- Chinese Characters: 百搭 (WILD) -->
-            <text x="50" y="76" font-family="'Russo One', 'Outfit', serif" font-weight="900" font-size="19" fill="#7f1d1d" stroke="#fef08a" stroke-width="0.8" text-anchor="middle" letter-spacing="1">百搭</text>
+            <text x="50" y="76" font-family="'Microsoft YaHei', 'PingFang SC', 'SimSun', 'Russo One', sans-serif" font-weight="900" font-size="19" fill="#7f1d1d" stroke="#fef08a" stroke-width="0.8" text-anchor="middle" letter-spacing="1">百搭</text>
             
             <!-- Shimmer Star -->
             <polygon points="50,22 53,28 60,30 53,32 50,38 47,32 40,30 47,28" fill="#fff" opacity="0.95"/>
@@ -235,9 +235,9 @@ const MAHJONG_GLYPHS = {
     '🀅': (isGold) => `
         <g id="glyph-fa-cai">
             <!-- Deep Carved Emerald Green Calligraphy '發' -->
-            <text x="50" y="66" font-family="'Noto Serif SC', 'Songti SC', serif" font-weight="900" font-size="48" fill="url(#mjGreenLacquer)" stroke="${isGold ? '#78350f' : '#064e3b'}" stroke-width="1.8" text-anchor="middle">發</text>
+            <text x="50" y="66" font-family="'Microsoft YaHei', 'PingFang SC', 'Noto Serif SC', 'SimSun', serif" font-weight="900" font-size="48" fill="url(#mjGreenLacquer)" stroke="${isGold ? '#78350f' : '#064e3b'}" stroke-width="1.8" text-anchor="middle">發</text>
             <!-- Jade Glisten Overlay -->
-            <text x="49" y="65" font-family="'Noto Serif SC', 'Songti SC', serif" font-weight="900" font-size="48" fill="none" stroke="#a7f3d0" stroke-width="0.8" text-anchor="middle" opacity="0.8">發</text>
+            <text x="49" y="65" font-family="'Microsoft YaHei', 'PingFang SC', 'Noto Serif SC', 'SimSun', serif" font-weight="900" font-size="48" fill="none" stroke="#a7f3d0" stroke-width="0.8" text-anchor="middle" opacity="0.8">發</text>
         </g>
     `,
 
@@ -326,7 +326,7 @@ const MAHJONG_GLYPHS = {
             <rect x="36" y="24" width="28" height="6" rx="2" fill="#f59e0b" stroke="#78350f" stroke-width="1"/>
             <rect x="36" y="70" width="28" height="6" rx="2" fill="#f59e0b" stroke="#78350f" stroke-width="1"/>
             <!-- Center Gold Calligraphy '胡' (HU / WIN) -->
-            <text x="50" y="56" font-family="'Russo One', serif" font-weight="900" font-size="20" fill="#fef08a" text-anchor="middle">胡</text>
+            <text x="50" y="56" font-family="'Microsoft YaHei', 'PingFang SC', 'SimSun', 'Russo One', sans-serif" font-weight="900" font-size="20" fill="#fef08a" text-anchor="middle">胡</text>
             <!-- Hanging Golden Tassels -->
             <line x1="50" y1="76" x2="50" y2="88" stroke="#f59e0b" stroke-width="3"/>
             <circle cx="50" cy="89" r="3" fill="#f59e0b"/>
@@ -380,7 +380,7 @@ export const getMahjongSVG = (tile, options = {}) => {
     ].filter(Boolean).join(' ');
 
     return `
-<svg class="${classes}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 112" style="width: 1em; height: 1.12em; display: inline-block; vertical-align: middle; filter: drop-shadow(0 5px 8px rgba(0,0,0,0.55)); user-select: none;">
+<svg width="100" height="112" class="${classes}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 112" style="width: 1em; height: 1.12em; display: inline-block; vertical-align: middle; filter: drop-shadow(0 5px 8px rgba(0,0,0,0.55)); user-select: none;">
     ${SVG_DEFS}
     ${createTileChassis(isGold)}
     ${glyphContent}

@@ -599,19 +599,19 @@ class RewardManager {
         if (isBailout) {
             btnHub.classList.add('hub-alert');
             btnHub.classList.remove('hub-cooldown');
-            if (textEl) textEl.innerHTML = `🚨 BANTUAN 5M`;
+            if (textEl) textEl.textContent = `5M`;
             btnHub.title = 'Saldo Kritis! Buka Bantuan Darurat VIP 5.000.000 TC';
         } else if (isFaucet || claimableCount > 0) {
             btnHub.classList.remove('hub-alert', 'hub-cooldown');
             btnHub.classList.add('hub-ready');
-            if (textEl) textEl.innerHTML = `🎁 KLAIM REWARD`;
+            if (textEl) textEl.textContent = `+5M`;
             btnHub.title = `Ada ${claimableCount} Hadiah / Misi Siap Diklaim!`;
         } else {
             btnHub.classList.remove('hub-alert', 'hub-ready');
             btnHub.classList.add('hub-cooldown');
             const min = Math.floor(remainingSec / 60);
             const sec = String(remainingSec % 60).padStart(2, '0');
-            if (textEl) textEl.innerHTML = `⏳ ${min}:${sec}`;
+            if (textEl) textEl.textContent = `${min}:${sec}`;
             btnHub.title = `VIP Faucet Cooldown (${min}:${sec}). Buka untuk lihat Misi & Absensi!`;
         }
 
