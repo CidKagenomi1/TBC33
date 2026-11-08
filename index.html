@@ -35,10 +35,10 @@
     <!-- ── Top VIP Bar ── -->
     <header class="vip-topbar">
         <div class="vip-topbar-inner">
-            <!-- Brand & Lobby Drawer Trigger -->
+            <!-- Brand & Lobby Home Trigger -->
             <div class="brand-group">
-                <button id="btn-open-lobby" class="btn-vip btn-lobby" title="Buka Menu Game &amp; VIP Lounge (L)">
-                    <span class="hamburger-icon">☰</span>
+                <button id="btn-open-lobby" class="btn-vip btn-lobby" title="Lobby Utama Kasino">
+                    <span class="hamburger-icon">🏠</span>
                     <span class="lobby-label">LOBBY</span>
                 </button>
                 <div class="brand-badge">
@@ -50,8 +50,8 @@
                         </span>
                     </div>
                 </div>
-                <div id="header-active-game-pill" class="header-active-game-pill" title="Game yang sedang aktif">
-                    <span>🎰</span> Goldy Crush
+                <div id="header-active-game-pill" class="header-active-game-pill" title="Status Halaman Aktif">
+                    <span>👑</span> VIP LOBBY
                 </div>
                 <div id="header-rate-badge-container" class="header-rate-container"></div>
             </div>
@@ -75,172 +75,6 @@
             </div>
         </div>
     </header>
-
-    <!-- ── VIP Casino Lobby Sidebar / Drawer ── -->
-    <div id="lobby-drawer-overlay" class="lobby-drawer-overlay" aria-hidden="true"></div>
-    <aside id="lobby-drawer" class="lobby-drawer" role="dialog" aria-label="VIP Casino Lobby">
-        <div class="lobby-drawer-header">
-            <div class="lobby-header-title-box">
-                <span class="lobby-header-icon">🪙</span>
-                <div>
-                    <h3 class="lobby-header-title">VIP CASINO LOBBY</h3>
-                    <span class="lobby-header-sub">Pilih Mesin Slot &amp; Wahana Kasino</span>
-                </div>
-            </div>
-            <button id="btn-close-lobby" class="btn-lobby-close" title="Tutup Menu Lobby (Esc)">✕</button>
-        </div>
-
-        <div class="lobby-drawer-body">
-            <!-- Active Game Summary Banner -->
-            <div class="lobby-current-banner">
-                <div class="banner-sub">GAME AKTIF SAAT INI</div>
-                <div class="banner-main" id="drawer-current-game-title">🎰 Goldy Crush (6x3)</div>
-            </div>
-
-            <!-- Game Catalog Section -->
-            <div class="lobby-section">
-                <div class="lobby-section-title">
-                    <span>🎰</span> PILIH PERMAINAN &amp; MESIN
-                </div>
-                <div class="lobby-game-grid" id="drawer-game-grid">
-                    <!-- 1. Goldy Crush -->
-                    <button type="button" class="lobby-game-card active" data-game-id="slot">
-                        <div class="game-card-icon">🎰</div>
-                        <div class="game-card-info">
-                            <div class="game-card-top">
-                                <span class="game-card-name">Goldy Crush</span>
-                                <span class="game-card-badge badge-pop">6x3 REEL</span>
-                            </div>
-                            <div class="game-card-desc">Tambang Emas Klasik &amp; Tumbling Wilds</div>
-                        </div>
-                        <div class="game-card-action">MAIN</div>
-                    </button>
-
-                    <!-- 2. Mahjong Ways -->
-                    <button type="button" class="lobby-game-card" data-game-id="mahjong">
-                        <div class="game-card-icon">🀄</div>
-                        <div class="game-card-info">
-                            <div class="game-card-top">
-                                <span class="game-card-name">Mahjong Ways Macau</span>
-                                <span class="game-card-badge badge-mega">6x8 REEL</span>
-                            </div>
-                            <div class="game-card-desc">Naga Emas, Simbol Bersepuh &amp; Multiplier 10x</div>
-                        </div>
-                        <div class="game-card-action">MAIN</div>
-                    </button>
-
-                    <!-- 3. Gates of Olympus -->
-                    <button type="button" class="lobby-game-card" data-game-id="zeus">
-                        <div class="game-card-icon">⚡</div>
-                        <div class="game-card-info">
-                            <div class="game-card-top">
-                                <span class="game-card-name">Gates of Olympus</span>
-                                <span class="game-card-badge badge-zeus">6x5 REEL</span>
-                            </div>
-                            <div class="game-card-desc">Petir Zeus Sambung &amp; Multiplier Petir 500x</div>
-                        </div>
-                        <div class="game-card-action">MAIN</div>
-                    </button>
-
-                    <!-- 4. Fortune Wheel -->
-                    <button type="button" class="lobby-game-card" data-game-id="wheel">
-                        <div class="game-card-icon">🎡</div>
-                        <div class="game-card-info">
-                            <div class="game-card-top">
-                                <span class="game-card-name">Mega Fortune Wheel</span>
-                                <span class="game-card-badge">INSTANT WIN</span>
-                            </div>
-                            <div class="game-card-desc">Roda Putar Hadiah Pengali 100x &amp; Tiket Lotre</div>
-                        </div>
-                        <div class="game-card-action">MAIN</div>
-                    </button>
-
-                    <!-- 5. Progressive Lottery -->
-                    <button type="button" class="lobby-game-card" data-game-id="lottery">
-                        <div class="game-card-icon">🎫</div>
-                        <div class="game-card-info">
-                            <div class="game-card-top">
-                                <span class="game-card-name">Lotre Progresif 4D</span>
-                                <span class="game-card-badge badge-jackpot">JACKPOT</span>
-                            </div>
-                            <div class="game-card-desc">Tebak Angka 4D Berhadiah Ratusan Juta TC</div>
-                        </div>
-                        <div class="game-card-action">MAIN</div>
-                    </button>
-
-                    <!-- 6. Parlay Sports & Derby -->
-                    <button type="button" class="lobby-game-card" data-game-id="parlay">
-                        <div class="game-card-icon">🚀</div>
-                        <div class="game-card-info">
-                            <div class="game-card-top">
-                                <span class="game-card-name">Parlay Sports &amp; Derby</span>
-                                <span class="game-card-badge">MULTI-BET</span>
-                            </div>
-                            <div class="game-card-desc">Taruhan Combo Bola &amp; Pacuan Kuda Derby</div>
-                        </div>
-                        <div class="game-card-action">MAIN</div>
-                    </button>
-                </div>
-            </div>
-
-            <!-- VIP Utilities & Rewards Section -->
-            <div class="lobby-section">
-                <div class="lobby-section-title">
-                    <span>💎</span> VIP UTILITIES &amp; SETTINGS
-                </div>
-                <div class="lobby-tools-box">
-                    <!-- VIP Rewards & Faucet -->
-                    <div class="lobby-tool-row">
-                        <div class="tool-row-info">
-                            <div class="tool-title">🎁 VIP Rewards &amp; Misi</div>
-                            <div class="tool-sub" id="drawer-faucet-sub">Klaim 15 Menit &amp; Absensi Harian</div>
-                        </div>
-                        <button id="drawer-btn-faucet" class="btn-vip btn-rewards-hub btn-tool-action">BUKA</button>
-                    </div>
-
-                    <!-- Luck Meter / Pengukur Status Keberuntungan -->
-                    <div class="lobby-tool-row luck-meter-row" id="drawer-luck-meter-box" title="Klik untuk info detail Pity System Keberuntungan">
-                        <div class="luck-meter-header">
-                            <div class="tool-row-info">
-                                <div class="tool-title luck-meter-title">
-                                    <span>✨ Pengukur Keberuntungan</span>
-                                </div>
-                                <div class="tool-sub" id="drawer-luck-status">Normal (1.0×) • 0 Kalah</div>
-                            </div>
-                            <div id="drawer-luck-badge-container">
-                                <div class="rate-badge rate-off-badge">Rate: OFF (0/250)</div>
-                            </div>
-                        </div>
-                        <div class="luck-meter-bar-track">
-                            <div id="drawer-luck-bar" class="luck-meter-bar-fill" style="width: 0%;"></div>
-                        </div>
-                        <div class="luck-meter-footer">
-                            <span id="drawer-luck-accum-info">Akumulasi Kalah: 0 / 250</span>
-                            <span id="drawer-luck-rate-label">0% (1.00×)</span>
-                        </div>
-                    </div>
-
-                    <!-- Sound Toggle -->
-                    <div class="lobby-tool-row">
-                        <div class="tool-row-info">
-                            <div class="tool-title">🔊 Efek Suara</div>
-                            <div class="tool-sub" id="drawer-sound-status">Musik &amp; audio synthesizer</div>
-                        </div>
-                        <button id="btn-sound-toggle" class="btn-vip btn-secondary-vip btn-tool-action">Sound: ON</button>
-                    </div>
-
-                    <!-- Reset Account -->
-                    <div class="lobby-tool-row">
-                        <div class="tool-row-info">
-                            <div class="tool-title">🔄 Reset Progres</div>
-                            <div class="tool-sub">Kembalikan saldo ke 10.000.000 TC</div>
-                        </div>
-                        <button id="btn-reset" class="btn-vip btn-secondary-vip btn-tool-action">RESET</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </aside>
 
     <!-- ── Main App Viewport ── -->
     <main class="app-viewport" id="app">

@@ -156,6 +156,7 @@ class RewardManager {
             this.updateHeaderDisplay();
             this._checkAchievements();
             this._updateModalLiveElements();
+            this._updateLobbyLiveElements();
         });
 
         gameState.on('expense', (data) => {
@@ -243,6 +244,7 @@ class RewardManager {
         this.tickerInterval = setInterval(() => {
             this.updateHeaderDisplay();
             this._updateModalLiveElements();
+            this._updateLobbyLiveElements();
         }, 1000);
     }
 
@@ -656,6 +658,65 @@ class RewardManager {
                 modalBtn.textContent = `⏳ COOLDOWN (${m}:${s})`;
                 modalBtn.classList.add('btn-cooldown');
             }
+        }
+    }
+
+    _updateLobbyLiveElements() {
+        // 1. Lobby Faucet Timer & Button
+        const faucetTimer = document.getElementById('lobby-faucet-timer');
+        const faucetBtn = document.getElementById('lobby-btn-faucet');
+        if (faucetTimer && faucetBtn) {
+            const sec = this.getFaucetRemainingSeconds();
+            if (sec <= 0) {
+                faucetTimer.textContent = 'SIAP DIKLAIM!';
+                faucetTimer.style.color = '#10b981';
+                faucetBtn.disabled = false;
+                faucetBtn.textContent = '🎁 KLAIM +5M TC';
+                faucetBtn.classList.remove('btn-cooldown');
+                faucetBtn.classList.add('btn-ready-glow');
+            } else {
+                const m = Math.floor(sec / 60);
+                const s = String(sec % 60).padStart(2, '0');
+                faucetTimer.textContent = `Cooldown: ${m}:${s}`;
+                faucetTimer.style.color = '#f59e0b';
+                faucetBtn.disabled = true;
+                faucetBtn.textContent = `⏳ COOLDOWN (${m}:${s})`;
+                faucetBtn.classList.add('btn-cooldown');
+                faucetBtn.classList.remove('btn-ready-glow');
+            }
+        }
+
+        // 2. Lobby Daily Streak Status & Button
+        const streakBtn = document.getElementById('lobby-btn-streak');
+        const streakStatus = document.getElementById('lobby-streak-status');
+        if (streakBtn) {
+            const canClaim = this.canClaimDailyStreak();
+            if (canClaim) {
+                streakBtn.disabled = false;
+                streakBtn.textContent = '📅 KLAIM HARIAN';
+                streakBtn.classList.remove('btn-claimed', 'btn-cooldown');
+                streakBtn.classList.add('btn-ready-glow');
+                if (streakStatus) {
+                    streakStatus.textContent = '✨ Hadiah Absensi Siap Diklaim!';
+                    streakStatus.style.color = '#10b981';
+                }
+            } else {
+                streakBtn.disabled = true;
+                streakBtn.textContent = '✅ SUDAH KLAIM';
+                streakBtn.classList.add('btn-claimed');
+                streakBtn.classList.remove('btn-ready-glow');
+                if (streakStatus) {
+                    streakStatus.textContent = 'Kembali besok untuk streak berikutnya';
+                    streakStatus.style.color = 'rgba(255,255,255,0.45)';
+                }
+            }
+        }
+
+        // 3. Lobby Emergency Bailout Alert Card
+        const bailoutCard = document.getElementById('lobby-bailout-card');
+        if (bailoutCard) {
+            const isBankrupt = this.isBankrupt();
+            bailoutCard.style.display = isBankrupt ? 'flex' : 'none';
         }
     }
 
