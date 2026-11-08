@@ -12,6 +12,7 @@ import gamblingPanel from './GamblingPanel.js';
 import pixiEffects from './graphics/PixiEffects.js';
 import mobileHandler from './ui/MobileHandler.js';
 import rewardManager from './rewards/RewardManager.js';
+import casinoVolatility from './casino/CasinoVolatilityEngine.js';
 
 function initApp() {
     // 0. Initialize Mobile Handler & Orientation Engine
@@ -45,10 +46,16 @@ function updateHeaderBalance() {
     const formatted = financeManager.formatCurrency(bal);
 
     const headerBal = document.getElementById('header-chip-balance');
-    if (headerBal) headerBal.textContent = `${formatted} TC`;
+    if (headerBal) {
+        headerBal.textContent = `${formatted} TC`;
+        headerBal.title = `Saldo: ${new Intl.NumberFormat('id-ID').format(Math.round(bal))} TC`;
+    }
 
     const subBal = document.getElementById('header-chip-compact');
-    if (subBal) subBal.textContent = `≈ ${financeManager.formatCurrency(bal, true)} Chips`;
+    if (subBal) {
+        subBal.textContent = `≈ ${financeManager.formatCurrency(bal, true)} Chips`;
+        subBal.title = `Saldo: ${new Intl.NumberFormat('id-ID').format(Math.round(bal))} Chips`;
+    }
 }
 
 function setupHeaderControls() {
@@ -109,23 +116,20 @@ function setupHeaderControls() {
         });
     }
 
-    // Luck Status Boost Cheat (for fun / test)
-    const luckBtn = document.getElementById('btn-luck-boost');
-    if (luckBtn) {
-        luckBtn.addEventListener('click', () => {
-            pixiEffects.buttonPress(luckBtn);
-            const current = gameState.get('donations') || { luckMultiplier: 1.0, luckTicksRemaining: 0 };
-            const isLucky = current.luckMultiplier > 1 && current.luckTicksRemaining > 0;
-            if (isLucky) {
-                gameState.set('donations', { luckMultiplier: 1.0, luckTicksRemaining: 0 });
-                ui.info('Luck status kembali Normal (1.0x)');
-            } else {
-                gameState.set('donations', { luckMultiplier: 2.5, luckTicksRemaining: 100 });
-                AuraSound.playSuccessAlert();
-                ui.success('Luck status boosted: 2.5x Multiplier Aktif!', '✨ Lady Luck Smiles!');
-            }
-            gamblingPanel.refreshBalanceDisplay();
-            gamblingPanel.updateLobbyUI();
+    // Luck Status Meter Info Modal / Tooltip
+    const luckMeterBox = document.getElementById('drawer-luck-meter-box');
+    if (luckMeterBox) {
+        luckMeterBox.addEventListener('click', () => {
+            pixiEffects.buttonPress(luckMeterBox);
+            AuraSound.playTap();
+            const info = casinoVolatility.getLuckInfo();
+            ui.info(
+                `Akumulasi Kalah: ${info.losses} / ${info.target} (${info.percent}%)\n` +
+                `Tingkat Status: ${info.tierLabel}\n` +
+                `Pity Multiplier: ${info.multiplier.toFixed(2)}×\n\n` +
+                `Kekalahan dari semua game diakumulasi. Pada 250 kekalahan, RATE ON akan aktif sampai memenangkan Jackpot!`,
+                '✨ Pengukur Status Keberuntungan'
+            );
         });
     }
 }

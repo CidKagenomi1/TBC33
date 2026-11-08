@@ -198,13 +198,26 @@
                         <button id="drawer-btn-faucet" class="btn-vip btn-rewards-hub btn-tool-action">BUKA</button>
                     </div>
 
-                    <!-- Boost Luck -->
-                    <div class="lobby-tool-row">
-                        <div class="tool-row-info">
-                            <div class="tool-title">✨ Status Keberuntungan</div>
-                            <div class="tool-sub" id="drawer-luck-status">Normal (1.0×)</div>
+                    <!-- Luck Meter / Pengukur Status Keberuntungan -->
+                    <div class="lobby-tool-row luck-meter-row" id="drawer-luck-meter-box" title="Klik untuk info detail Pity System Keberuntungan">
+                        <div class="luck-meter-header">
+                            <div class="tool-row-info">
+                                <div class="tool-title luck-meter-title">
+                                    <span>✨ Pengukur Keberuntungan</span>
+                                </div>
+                                <div class="tool-sub" id="drawer-luck-status">Normal (1.0×) • 0 Kalah</div>
+                            </div>
+                            <div id="drawer-luck-badge-container">
+                                <div class="rate-badge rate-off-badge">Rate: OFF (0/250)</div>
+                            </div>
                         </div>
-                        <button id="btn-luck-boost" class="btn-vip btn-secondary-vip btn-tool-action">BOOST</button>
+                        <div class="luck-meter-bar-track">
+                            <div id="drawer-luck-bar" class="luck-meter-bar-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="luck-meter-footer">
+                            <span id="drawer-luck-accum-info">Akumulasi Kalah: 0 / 250</span>
+                            <span id="drawer-luck-rate-label">0% (1.00×)</span>
+                        </div>
                     </div>
 
                     <!-- Sound Toggle -->

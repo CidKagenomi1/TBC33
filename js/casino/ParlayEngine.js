@@ -12,6 +12,7 @@ import financeManager from '../finance/FinanceManager.js';
 import gameState from '../core/GameState.js';
 import ui from '../ui/UIManager.js';
 import pixiEffects from '../graphics/PixiEffects.js';
+import casinoVolatility from './CasinoVolatilityEngine.js';
 
 const LEAGUES = [
     { id: 'all', name: 'Semua Liga', emoji: '🌍' },
@@ -1185,11 +1186,9 @@ export class ParlayEngine {
         financeManager.addExpense(betAmount, 'Lainnya', `Taruhan Parlay Sepak Bola (${this.selectedLegs.length} Leg)`);
         this.onBalanceRefresh?.();
 
-        // Increment rate plays
-        let plays = gameState.get('casino.ratePlays') || 0;
-        plays++;
-        gameState.set('casino.ratePlays', plays);
-        const rateOn = plays >= 250;
+        // Read accumulated luck & rate status from loss pity engine
+        const luckInfo = casinoVolatility.getLuckInfo();
+        const rateOn = luckInfo.isRateOn;
 
         // Initialize state for each leg
         this.simLegStates = this.selectedLegs.map(leg => {
@@ -1297,7 +1296,7 @@ export class ParlayEngine {
             financeManager.addIncome(this.simWinAmount, 'Investasi', `Tiket Parlay Sepak Bola (${this.selectedLegs.length} Leg) Tembus!`);
             this.onBalanceRefresh?.();
 
-            gameState.set('casino.ratePlays', 0);
+            casinoVolatility.recordBigWin();
             pixiEffects.celebrateWin({
                 amount: this.simWinAmount,
                 type: this.selectedLegs.length >= 4 ? 'jackpot' : 'mega',
@@ -1308,9 +1307,16 @@ export class ParlayEngine {
             ui.success(`PARLAY TEMBUS! Menang +${financeManager.formatCurrency(this.simWinAmount)} TC (${totalMultiplier.toFixed(2)}x)!`, '🏆 Parlay Win');
         } else {
             this.simResult = 'lose';
+            casinoVolatility.recordLoss();
             import('../ui/AuraSound.js').then(m => m.default.playCasinoLose());
             ui.toast({ type: 'warning', title: 'Parlay Kalah', message: 'Tiket gagal karena ada pertandingan yang meleset.' });
         }
+
+        // Refresh rate badges
+        const badgeWrap = document.querySelector('.parlay-header .rate-badge-wrap');
+        if (badgeWrap) badgeWrap.innerHTML = this.getRateStatusHTML();
+        const headerRate = document.getElementById('header-rate-badge-container');
+        if (headerRate) headerRate.innerHTML = this.getRateStatusHTML();
 
         this.isSimulating = false;
         this.refreshSimulationConsole();

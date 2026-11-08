@@ -92,24 +92,58 @@ class FinanceManager {
     }
 
     /**
-     * Format chip amounts cleanly
+     * Format chip amounts cleanly.
+     * Amounts >= 100,000,000 are automatically shortened with standard suffixes:
+     * M (Million), B (Billion), T (Trillion), Q (Quadrillion), Qi (Quintillion), etc.
      * Examples:
-     * formatCurrency(1250000) => "1.250.000"
-     * formatCurrency(1250000, true) => "1.3M"
+     * - formatCurrency(50000) => "50.000"
+     * - formatCurrency(10000000) => "10.000.000"
+     * - formatCurrency(99999999) => "99.999.999"
+     * - formatCurrency(100000000) => "100M"
+     * - formatCurrency(100670000) => "100.67M"
+     * - formatCurrency(1250000000) => "1.25B"
+     * - formatCurrency(1000000000000) => "1T"
+     * - formatCurrency(2500000000000000) => "2.5Q"
      */
     formatCurrency(amount, compact = false) {
-        const num = Number(amount) || 0;
+        const num = Number(amount);
+        if (!Number.isFinite(num) || num === 0) return '0';
         const abs = Math.abs(num);
 
-        if (compact) {
-            if (abs >= 1e12) return (num / 1e12).toFixed(1).replace(/\.0$/, '') + 'T';
-            if (abs >= 1e9)  return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
-            if (abs >= 1e6)  return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
-            if (abs >= 1e3)  return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
-            return num.toString();
+        // Standard formatting with dot separators for amounts strictly below 100,000,000
+        if (!compact && abs < 100000000) {
+            return new Intl.NumberFormat('id-ID').format(Math.round(num));
         }
 
-        return new Intl.NumberFormat('id-ID').format(Math.round(num));
+        if (abs < 1000) {
+            return compact ? num.toString() : new Intl.NumberFormat('id-ID').format(Math.round(num));
+        }
+
+        const UNITS = [
+            '', 'K', 'M', 'B', 'T', 'Q', 'Qi', 'Sx', 'Sp', 'Oc', 'No',
+            'Dc', 'Ud', 'Dd', 'Td', 'Qad', 'Qid', 'Sxd', 'Spd', 'Ocd', 'Nod', 'Vg',
+            'Uvg', 'Dvg', 'Tvg', 'Qavg', 'Qivg', 'Sxvg', 'Spvg', 'Ocvg', 'Novg', 'Tg',
+            'Utg', 'Dtg', 'Ttg'
+        ];
+
+        let tier = Math.floor(Math.log10(abs) / 3);
+        let divisor = Math.pow(10, tier * 3);
+        let scaled = num / divisor;
+        let formatted = scaled.toFixed(2).replace(/\.?0+$/, '');
+
+        // Handle edge rounding cases (e.g. 999.999M rounding up to 1000M -> 1B)
+        if (Math.abs(parseFloat(formatted)) >= 1000) {
+            tier += 1;
+            divisor = Math.pow(10, tier * 3);
+            scaled = num / divisor;
+            formatted = scaled.toFixed(2).replace(/\.?0+$/, '');
+        }
+
+        if (tier < UNITS.length) {
+            return formatted + UNITS[tier];
+        }
+
+        return num.toExponential(2).replace('+', '');
     }
 }
 

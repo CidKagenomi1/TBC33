@@ -1,12 +1,13 @@
 /**
- * WheelEngine.js - Refactored Luxury Spinning Wheel (Roda Keberuntungan)
+ * WheelEngine.js - Dual-Wheel Luxury Fortune Terminal
  * Features:
- * - Full 360-degree WebGL / PixiJS Wheel (no visual clipping) with luxury gold bezel
- * - 12 High-Yield Sectors (100x Grand Jackpot, 25x Mega, 10x Diamond, Free & Bonus 3x Spins, Lottery Tickets)
- * - Sleek Cyber-VIP glassmorphism cockpit controls
- * - Quick Token Exchange Hub (Convert Free/Bonus spins to Lottery Tokens)
- * - Multi-speed Auto-Spin & instant Skip capabilities
- * - Fully responsive across mobile, tablet, and desktop
+ * - 2 Separate Wheels:
+ *   1) 👑 RODA UTAMA (VIP Cash Wheel): High-stakes multipliers (100x Grand Jackpot, 25x Mega, 10x, 5x, 3x, 2x, 1.5x, 1.2x, Free Spins, Lottery Tokens)
+ *   2) 🎁 RODA BONUS & PUTARAN GRATIS (Dedicated Free Spin Wheel): Special wheel for free spins with pure rewards (TC Cash, Token Lotre, Extra Spins)
+ * - FULL AUTO-SPIN SUPPORT on BOTH Wheels (including auto-spinning through all available Free Spins!)
+ * - NO PAGE / WHEEL RESET ON STOP: Updates UI state selectively in-place without rebuilding the DOM or destroying the canvas rotation angle!
+ * - Toggle mode buttons (Main VIP Wheel vs Dedicated Free Wheel)
+ * - Smooth WebGL PixiJS rendering + SVG fallback
  */
 
 import financeManager from '../finance/FinanceManager.js';
@@ -14,31 +15,53 @@ import gameState from '../core/GameState.js';
 import ui from '../ui/UIManager.js';
 import PixiWheelStage from '../graphics/PixiWheelStage.js';
 import pixiEffects from '../graphics/PixiEffects.js';
+import casinoVolatility from './CasinoVolatilityEngine.js';
+import mobileHandler from '../ui/MobileHandler.js';
 
-const SECTORS = [
+// 1) Roda Utama (VIP Wheel - Memakai Taruhan Kas)
+const MAIN_SECTORS = [
     { label: '🏆 100x', multiplier: 100.0, color: '#fbbf24', text: '#000', type: 'usd' },        // Grand Jackpot Gold
     { label: '🪙 1.5x', multiplier: 1.5,   color: '#10b981', text: '#fff', type: 'usd' },        // Emerald Safe Win
     { label: '⭐ 5.0x', multiplier: 5.0,   color: '#8b5cf6', text: '#fff', type: 'usd' },        // Violet Strike
     { label: '🪙 1.2x', multiplier: 1.2,   color: '#06b6d4', text: '#fff', type: 'usd' },        // Cyan Quick Win
-    { label: '🎁 10 FREE', multiplier: 0,  color: '#3b82f6', text: '#fff', type: 'freespin' },   // Sapphire Free Spins
+    { label: '🎁 5 FREE', multiplier: 0, amount: 5, color: '#3b82f6', text: '#fff', type: 'freespin' },   // Free Spins Ticket
     { label: '👑 25.0x', multiplier: 25.0, color: '#f59e0b', text: '#000', type: 'usd' },        // Amber Mega
     { label: '🪙 2.0x', multiplier: 2.0,   color: '#84cc16', text: '#000', type: 'usd' },        // Lime Double
     { label: '🎟️ 5 TIKET', multiplier: 0, amount: 5, color: '#f43f5e', text: '#fff', type: 'lottery' }, // Rose Tickets
     { label: '⭐ 3.0x', multiplier: 3.0,   color: '#f97316', text: '#fff', type: 'usd' },        // Orange Triple
     { label: '🪙 0.8x', multiplier: 0.8,   color: '#64748b', text: '#fff', type: 'usd' },        // Slate Rebate
     { label: '💎 10.0x', multiplier: 10.0, color: '#0ea5e9', text: '#fff', type: 'usd' },        // Sky Diamond
-    { label: '🔥 50 BONUS', multiplier: 0, color: '#ec4899', text: '#fff', type: 'bonusspin' }   // Magenta 3x Bonus
+    { label: '🎁 10 FREE', multiplier: 0, amount: 10, color: '#ec4899', text: '#fff', type: 'freespin' }  // 10 Free Spins
+];
+
+// 2) Roda Terpisah Khusus Putaran Gratis (Dedicated Free Spin Wheel - Tanpa Taruhan Kas)
+const FREE_SECTORS = [
+    { label: '💎 $500K TC', fixedCash: 500000, color: '#0ea5e9', text: '#fff', type: 'cash' },
+    { label: '🎟️ 1 TIKET', amount: 1, color: '#f43f5e', text: '#fff', type: 'lottery' },
+    { label: '⭐ $100K TC', fixedCash: 100000, color: '#8b5cf6', text: '#fff', type: 'cash' },
+    { label: '🎁 +2 SPIN', amount: 2, color: '#3b82f6', text: '#fff', type: 'freespin' },
+    { label: '👑 $1M TC', fixedCash: 1000000, color: '#f59e0b', text: '#000', type: 'cash' },
+    { label: '🎟️ 3 TIKET', amount: 3, color: '#ec4899', text: '#fff', type: 'lottery' },
+    { label: '🪙 $250K TC', fixedCash: 250000, color: '#10b981', text: '#fff', type: 'cash' },
+    { label: '🎁 +5 SPIN', amount: 5, color: '#06b6d4', text: '#fff', type: 'freespin' },
+    { label: '⭐ $50K TC', fixedCash: 50000, color: '#64748b', text: '#fff', type: 'cash' },
+    { label: '🏆 $5M JACKPOT', fixedCash: 5000000, color: '#fbbf24', text: '#000', type: 'cash' }
 ];
 
 export class WheelEngine {
     constructor(onBalanceRefresh) {
         this.onBalanceRefresh = onBalanceRefresh;
+        this.activeWheelMode = 'main'; // 'main' | 'free'
         this.isSpinning = false;
         this.currentRotation = 0;
         this.autoSpinCount = 0;
         this.isAutoSpinning = false;
         this.skipRequested = false;
         this.pixiWheel = null;
+    }
+
+    getActiveSectors() {
+        return this.activeWheelMode === 'free' ? FREE_SECTORS : MAIN_SECTORS;
     }
 
     getRateStatusHTML() {
@@ -55,12 +78,6 @@ export class WheelEngine {
     set freeSpinsRemaining(val) {
         gameState.set('casino.freeSpins', Math.max(0, val));
     }
-    get bonusSpinsRemaining() {
-        return gameState.get('casino.bonusSpins') || 0;
-    }
-    set bonusSpinsRemaining(val) {
-        gameState.set('casino.bonusSpins', Math.max(0, val));
-    }
     get lotteryTokens() {
         return gameState.get('casino.lotteryTokens') || 0;
     }
@@ -68,16 +85,15 @@ export class WheelEngine {
         gameState.set('casino.lotteryTokens', Math.max(0, val));
     }
 
-    getHTML() {
-        // Build SVG sectors path for fallback
+    renderSVGSectors(sectors) {
         let paths = '';
         const cx = 150;
         const cy = 150;
         const r = 140;
-        const totalSectors = SECTORS.length;
+        const totalSectors = sectors.length;
         const anglePerSector = 360 / totalSectors;
 
-        SECTORS.forEach((sec, i) => {
+        sectors.forEach((sec, i) => {
             const startAngle = i * anglePerSector - 90;
             const endAngle = (i + 1) * anglePerSector - 90;
 
@@ -101,67 +117,44 @@ export class WheelEngine {
                 </g>
             `;
         });
+        return paths;
+    }
 
-        // Special spins indicators
-        let statusIndicators = '';
-        if (this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0) {
-            statusIndicators = `
-                <div class="wheel-spins-strip">
-                    ${this.freeSpinsRemaining > 0 ? `
-                        <div class="wheel-spin-badge free-spins">
-                            <span class="icon">🎁</span>
-                            <div class="details">
-                                <span class="lbl">PUTARAN GRATIS</span>
-                                <span class="val">${this.freeSpinsRemaining} SPIN</span>
-                            </div>
-                        </div>
-                    ` : ''}
-                    ${this.bonusSpinsRemaining > 0 ? `
-                        <div class="wheel-spin-badge bonus-spins">
-                            <span class="icon">🔥</span>
-                            <div class="details">
-                                <span class="lbl">BONUS 3X LIPAT</span>
-                                <span class="val">${this.bonusSpinsRemaining} SPIN</span>
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-        }
-
-        // Determine Spin Button text & color styling
-        let spinBtnText = '🎡 PUTAR RODA';
-        let spinBtnClass = 'spin-normal';
-
-        if (this.isSpinning) {
-            spinBtnText = '⏭️ SPIN BREAK (LEWATI)';
-            spinBtnClass = 'spin-skip';
-        } else if (this.bonusSpinsRemaining > 0) {
-            spinBtnText = `🔥 PUTAR BONUS 3X (${this.bonusSpinsRemaining} Sisa)`;
-            spinBtnClass = 'spin-bonus';
-        } else if (this.freeSpinsRemaining > 0) {
-            spinBtnText = `🎁 PUTAR GRATIS (${this.freeSpinsRemaining} Sisa)`;
-            spinBtnClass = 'spin-free';
-        }
+    getHTML() {
+        const isFreeMode = this.activeWheelMode === 'free';
+        const sectors = this.getActiveSectors();
+        const paths = this.renderSVGSectors(sectors);
 
         return `
         <div class="wheel-suite-container">
-            <!-- Top Nav Pill & Header -->
+            <!-- Header Bar -->
             <div class="wheel-header-area">
                 <button type="button" class="btn-lobby-pill" title="Buka Menu Game (L)"><span>☰</span> LOBBY / GANTI GAME</button>
                 <h3 class="wheel-title">
-                    🎡 <span class="title-grad">MEGA FORTUNE WHEEL</span>
+                    🎡 <span class="title-grad">${isFreeMode ? 'RODA HADIAH GRATIS' : 'RODA UTAMA VIP'}</span>
                 </h3>
-                <p class="wheel-subtitle">PENGALI HINGGA 100X • PUTARAN GRATIS • TIKET LOTRE</p>
+                <p class="wheel-subtitle">${isFreeMode ? 'RODA KHUSUS TIKET SPIN GRATIS • HADIAH KAS MURNI &amp; TIKET LOTRE' : 'TARUHAN KAS • MULTIPLIER 100X • PUTARAN GRATIS'}</p>
                 <div class="rate-status-wrap">
                     ${this.getRateStatusHTML()}
                 </div>
             </div>
 
-            ${statusIndicators}
+            <!-- Mode Switcher Tabs (Roda Utama vs Roda Free Spin) -->
+            <div class="wheel-mode-switcher">
+                <button class="wheel-mode-btn ${!isFreeMode ? 'active' : ''}" id="btn-switch-main-wheel">
+                    <span class="mode-icon">👑</span>
+                    <span class="mode-title">RODA UTAMA VIP</span>
+                    <span class="mode-tag">Taruhan Kas</span>
+                </button>
+                <button class="wheel-mode-btn ${isFreeMode ? 'active' : ''}" id="btn-switch-free-wheel">
+                    <span class="mode-icon">🎁</span>
+                    <span class="mode-title">RODA PUTARAN GRATIS</span>
+                    <span class="mode-tag badge-spins" id="badge-free-spins-count">${this.freeSpinsRemaining} SPIN TERSEDIA</span>
+                </button>
+            </div>
 
             <!-- Center Stage: The 360-Degree Circular Wheel -->
-            <div class="wheel-arena-frame">
+            <div class="wheel-arena-frame ${isFreeMode ? 'theme-free' : 'theme-main'}">
                 <div class="wheel-pointer-arrow"></div>
                 <div class="wheel-bezel-ring">
                     <!-- PixiJS WebGL Canvas (Full 320x320) -->
@@ -180,67 +173,63 @@ export class WheelEngine {
                 </div>
             </div>
 
-            <!-- Result Marquee Board -->
+            <!-- Marquee Result Banner -->
             <div id="wheel-win-display" class="wheel-marquee-box">
-                <span class="marquee-placeholder">Silakan pasang taruhan dan putar roda keberuntungan...</span>
+                <span class="marquee-placeholder">${isFreeMode ? 'Putar roda gratis untuk memenangkan hadiah tanpa modal!' : 'Silakan pasang taruhan dan putar roda keberuntungan...'}</span>
             </div>
 
-            <!-- Glassmorphism Cockpit Control Section -->
+            <!-- Cockpit Controls (Sesuai Mode Aktif) -->
             <div class="wheel-cockpit-grid">
-                
-                <!-- Quick Token Exchange Hub -->
-                <div class="cockpit-card exchange-card">
-                    <div class="exchange-info">
-                        <span class="card-tag">🎫 TUKAR TOKEN LOTRE</span>
-                        <span class="card-sub">10 Free Spin = 1 Tiket | 5 Bonus = 1 Tiket</span>
-                    </div>
-                    <div class="exchange-actions">
-                        <button id="btn-convert-free" class="btn-token-swap free" ${this.freeSpinsRemaining < 10 ? 'disabled' : ''}>
-                            <span>🎁</span> +1 Token (10 Free)
-                        </button>
-                        <button id="btn-convert-bonus" class="btn-token-swap bonus" ${this.bonusSpinsRemaining < 5 ? 'disabled' : ''}>
-                            <span>🔥</span> +1 Token (5 Bonus)
-                        </button>
-                    </div>
-                </div>
 
-                <!-- Bet Setting Station -->
-                <div class="cockpit-card bet-card">
+                <!-- MAIN WHEEL CONTROLS (Taruhan Kas) -->
+                <div class="cockpit-card bet-card" id="main-wheel-controls" style="display:${!isFreeMode ? 'block' : 'none'};">
                     <div class="bet-header-row">
                         <span class="card-tag">TARUHAN PUTARAN</span>
                         <div class="bet-input-wrap">
                             <span class="currency-tag">TC</span>
-                            <input type="text" id="wheel-bet-input" value="100,000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>
+                            <input type="text" id="wheel-bet-input" value="100,000">
                         </div>
                     </div>
                     <div class="bet-presets-row">
-                        <button class="bet-chip wheel-preset" data-val="10000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>10K</button>
-                        <button class="bet-chip wheel-preset" data-val="100000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>100K</button>
-                        <button class="bet-chip wheel-preset" data-val="1000000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>1M</button>
-                        <button class="bet-chip wheel-preset" data-val="10000000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>10M</button>
-                        <button class="bet-chip bet-chip-max wheel-preset" id="btn-wheel-max" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>MAX</button>
+                        <button class="bet-chip wheel-preset" data-val="10000">10K</button>
+                        <button class="bet-chip wheel-preset" data-val="100000">100K</button>
+                        <button class="bet-chip wheel-preset" data-val="1000000">1M</button>
+                        <button class="bet-chip wheel-preset" data-val="10000000">10M</button>
+                        <button class="bet-chip bet-chip-max wheel-preset" id="btn-wheel-max">MAX</button>
                     </div>
+                </div>
+
+                <!-- FREE WHEEL NOTICE CARD -->
+                <div class="cockpit-card free-wheel-card" id="free-wheel-notice" style="display:${isFreeMode ? 'flex' : 'none'};">
+                    <div class="free-notice-info">
+                        <span class="free-title">🎁 RODA KHUSUS PUTARAN GRATIS</span>
+                        <span class="free-desc">Setiap putaran menggunakan 1 Tiket Spin Gratis. Tanpa mengurangi saldo TC Anda!</span>
+                    </div>
+                    <div class="free-badge-val" id="free-spins-val-box">${this.freeSpinsRemaining} SPIN</div>
                 </div>
 
                 <!-- Auto-Spin & Main Action Footer -->
                 <div class="cockpit-card auto-action-card">
-                    <div class="autospin-row">
+                    <!-- Auto Spin Row (Available on BOTH Wheels) -->
+                    <div class="autospin-row" id="autospin-row-container">
                         <div class="autospin-input-group">
-                            <span class="card-tag">AUTO SPIN</span>
+                            <span class="card-tag">${isFreeMode ? 'AUTO PUTAR GRATIS' : 'AUTO SPIN TARUHAN'}</span>
                             <div class="stepper-wrap">
-                                <input type="number" id="wheel-autospin-count" value="10" min="1" max="500">
+                                <input type="number" id="wheel-autospin-count" value="${isFreeMode ? Math.max(1, this.freeSpinsRemaining) : 10}" min="1" max="500">
                                 <span class="stepper-unit">PUTARAN</span>
                             </div>
                         </div>
                         <div class="autospin-btn-group">
-                            <button id="btn-wheel-auto-start" class="btn-autospin-start">🤖 JALANKAN AUTO</button>
+                            <button id="btn-wheel-auto-start" class="btn-autospin-start ${isFreeMode ? 'btn-free-auto' : ''}">
+                                ${isFreeMode ? '⚡ HABISKAN AUTO SPIN' : '🤖 AUTO SPIN'}
+                            </button>
                             <button id="btn-wheel-auto-stop" class="btn-autospin-stop" style="display:none;">⏹️ BERHENTI (0)</button>
                         </div>
                     </div>
 
-                    <!-- Big Vibrant Spin Button -->
-                    <button id="btn-wheel-spin" class="main-spin-action ${spinBtnClass}">
-                        ${spinBtnText}
+                    <!-- Main Action Spin Button -->
+                    <button id="btn-wheel-spin" class="main-spin-action ${isFreeMode ? 'spin-free' : 'spin-normal'}" ${isFreeMode && this.freeSpinsRemaining <= 0 ? 'disabled' : ''}>
+                        ${isFreeMode ? `🎁 PUTAR GRATIS (${this.freeSpinsRemaining} Sisa)` : '🎡 PUTAR RODA VIP'}
                     </button>
                 </div>
 
@@ -256,16 +245,12 @@ export class WheelEngine {
                 box-sizing: border-box;
                 padding-bottom: 1.5rem;
             }
-            .wheel-header-area {
-                margin-bottom: 0.75rem;
-            }
+            .wheel-header-area { margin-bottom: 0.6rem; }
             .wheel-title {
                 font-family: var(--font-display, 'Russo One', sans-serif);
-                font-weight: 900;
-                color: #fff;
                 font-size: 1.5rem;
-                letter-spacing: -0.02em;
-                margin: 0.35rem 0 0.2rem 0;
+                font-weight: 900;
+                margin: 0.35rem 0 0.15rem 0;
             }
             .title-grad {
                 background: linear-gradient(90deg, #ec4899, #fbbf24, #a855f7);
@@ -275,50 +260,60 @@ export class WheelEngine {
             }
             .wheel-subtitle {
                 color: rgba(255,255,255,0.45);
-                font-size: 0.72rem;
+                font-size: 0.7rem;
                 font-weight: 700;
                 letter-spacing: 0.08em;
                 margin-bottom: 0.4rem;
             }
-            .rate-status-wrap {
-                display: flex;
-                justify-content: center;
-                margin-top: 0.25rem;
-            }
+            .rate-status-wrap { display: flex; justify-content: center; }
 
-            /* Special Free & Bonus Spin Banner */
-            .wheel-spins-strip {
-                display: flex;
+            /* Mode Switcher Tabs */
+            .wheel-mode-switcher {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
                 gap: 0.5rem;
-                margin-bottom: 0.75rem;
-                justify-content: center;
-                flex-wrap: wrap;
+                margin-bottom: 0.85rem;
             }
-            .wheel-spin-badge {
+            .wheel-mode-btn {
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 12px;
+                padding: 0.6rem 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
                 display: flex;
+                flex-direction: column;
                 align-items: center;
-                gap: 0.5rem;
-                padding: 0.4rem 0.85rem;
-                border-radius: 10px;
-                border: 1px solid;
-                font-size: 0.75rem;
+                gap: 0.15rem;
+            }
+            .wheel-mode-btn:hover {
+                background: rgba(255,255,255,0.08);
+                border-color: rgba(255,255,255,0.25);
+            }
+            .wheel-mode-btn.active {
+                background: linear-gradient(135deg, rgba(251,191,36,0.15) 0%, rgba(217,119,6,0.25) 100%);
+                border-color: #fbbf24;
+                box-shadow: 0 0 15px rgba(251,191,36,0.25);
+            }
+            .wheel-mode-btn .mode-icon { font-size: 1.25rem; }
+            .wheel-mode-btn .mode-title {
+                font-family: var(--font-display, sans-serif);
+                font-size: 0.78rem;
+                font-weight: 900;
+                color: #fff;
+            }
+            .wheel-mode-btn.active .mode-title { color: #fbbf24; }
+            .wheel-mode-btn .mode-tag {
+                font-size: 0.62rem;
+                color: rgba(255,255,255,0.5);
                 font-weight: 800;
-                background: rgba(0,0,0,0.4);
-                backdrop-filter: blur(8px);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             }
-            .wheel-spin-badge.free-spins {
-                border-color: rgba(59,130,246,0.4);
+            .wheel-mode-btn .mode-tag.badge-spins {
                 color: #60a5fa;
+                background: rgba(59,130,246,0.15);
+                padding: 1px 6px;
+                border-radius: 4px;
             }
-            .wheel-spin-badge.bonus-spins {
-                border-color: rgba(236,72,153,0.4);
-                color: #f472b6;
-            }
-            .wheel-spin-badge .icon { font-size: 1.1rem; }
-            .wheel-spin-badge .details { text-align: left; line-height: 1.1; }
-            .wheel-spin-badge .details .lbl { font-size: 0.6rem; opacity: 0.8; display: block; }
-            .wheel-spin-badge .details .val { font-size: 0.88rem; color: #fff; font-weight: 900; }
 
             /* Wheel Arena Stage */
             .wheel-arena-frame {
@@ -371,6 +366,14 @@ export class WheelEngine {
                 box-sizing: border-box;
                 position: relative;
             }
+            .wheel-arena-frame.theme-free .wheel-bezel-ring {
+                box-shadow: 
+                    0 0 0 4px #1e293b,
+                    0 0 0 6px #3b82f6,
+                    0 0 25px rgba(59,130,246,0.35),
+                    0 0 40px rgba(14,165,233,0.2),
+                    inset 0 0 15px rgba(0,0,0,0.9);
+            }
             #wheel-pixi-canvas {
                 border-radius: 50%;
                 display: block;
@@ -417,10 +420,7 @@ export class WheelEngine {
                 text-shadow: 0 0 12px rgba(251,191,36,0.6);
                 animation: popIn 0.3s ease-out;
             }
-            .win-payout-num {
-                color: #10b981;
-                font-size: 1.15rem;
-            }
+            .win-payout-num { color: #10b981; font-size: 1.15rem; }
 
             /* Cockpit Cards */
             .wheel-cockpit-grid {
@@ -445,51 +445,6 @@ export class WheelEngine {
                 letter-spacing: 0.08em;
                 display: block;
             }
-            .card-sub {
-                font-size: 0.62rem;
-                color: rgba(255,255,255,0.35);
-                display: block;
-                margin-top: 2px;
-            }
-
-            /* Exchange Hub */
-            .exchange-card {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 0.5rem;
-                flex-wrap: wrap;
-                background: linear-gradient(135deg, rgba(236,72,153,0.06) 0%, rgba(26,18,22,0.6) 100%);
-                border-color: rgba(236,72,153,0.25);
-            }
-            .exchange-actions {
-                display: flex;
-                gap: 0.4rem;
-            }
-            .btn-token-swap {
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.12);
-                color: #fff;
-                font-size: 0.68rem;
-                font-weight: 800;
-                padding: 0.35rem 0.6rem;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.2s;
-                display: inline-flex;
-                align-items: center;
-                gap: 0.25rem;
-            }
-            .btn-token-swap.free { color: #60a5fa; border-color: rgba(59,130,246,0.35); }
-            .btn-token-swap.bonus { color: #f472b6; border-color: rgba(236,72,153,0.35); }
-            .btn-token-swap:hover:not(:disabled) {
-                background: rgba(255,255,255,0.12);
-                transform: translateY(-1px);
-            }
-            .btn-token-swap:disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-            }
 
             /* Bet Setting Card */
             .bet-header-row {
@@ -505,11 +460,7 @@ export class WheelEngine {
                 border-bottom: 1.5px solid rgba(236,72,153,0.5);
                 padding-bottom: 2px;
             }
-            .currency-tag {
-                color: #ec4899;
-                font-weight: 900;
-                font-size: 0.95rem;
-            }
+            .currency-tag { color: #ec4899; font-weight: 900; font-size: 0.95rem; }
             #wheel-bet-input {
                 background: transparent;
                 border: none;
@@ -548,9 +499,29 @@ export class WheelEngine {
                 border-color: rgba(251,191,36,0.35);
                 color: #fbbf24;
             }
-            .bet-chip:disabled {
-                opacity: 0.35;
-                cursor: not-allowed;
+
+            /* Free Wheel Notice Card */
+            .free-wheel-card {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.6rem;
+                background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(14,165,233,0.05) 100%);
+                border-color: rgba(59,130,246,0.3);
+            }
+            .free-notice-info { display: flex; flex-direction: column; gap: 2px; }
+            .free-title { font-size: 0.78rem; font-weight: 900; color: #60a5fa; }
+            .free-desc { font-size: 0.65rem; color: rgba(255,255,255,0.6); }
+            .free-badge-val {
+                font-family: var(--font-num, monospace);
+                font-size: 1.15rem;
+                font-weight: 900;
+                color: #fff;
+                background: rgba(59,130,246,0.2);
+                border: 1px solid rgba(59,130,246,0.4);
+                padding: 4px 10px;
+                border-radius: 8px;
+                white-space: nowrap;
             }
 
             /* Auto-spin and Spin Button */
@@ -567,16 +538,8 @@ export class WheelEngine {
                 padding-bottom: 0.5rem;
                 border-bottom: 1px solid rgba(255,255,255,0.06);
             }
-            .autospin-input-group {
-                display: flex;
-                flex-direction: column;
-                gap: 0.2rem;
-            }
-            .stepper-wrap {
-                display: flex;
-                align-items: center;
-                gap: 0.35rem;
-            }
+            .autospin-input-group { display: flex; flex-direction: column; gap: 0.2rem; }
+            .stepper-wrap { display: flex; align-items: center; gap: 0.35rem; }
             #wheel-autospin-count {
                 width: 60px;
                 background: rgba(0,0,0,0.4);
@@ -588,15 +551,8 @@ export class WheelEngine {
                 text-align: center;
                 padding: 0.2rem;
             }
-            .stepper-unit {
-                font-size: 0.65rem;
-                color: rgba(255,255,255,0.4);
-                font-weight: 700;
-            }
-            .autospin-btn-group {
-                display: flex;
-                gap: 0.4rem;
-            }
+            .stepper-unit { font-size: 0.65rem; color: rgba(255,255,255,0.4); font-weight: 700; }
+            .autospin-btn-group { display: flex; gap: 0.4rem; }
             .btn-autospin-start, .btn-autospin-stop {
                 font-size: 0.75rem;
                 font-weight: 800;
@@ -611,9 +567,13 @@ export class WheelEngine {
                 border-color: rgba(168,85,247,0.35);
                 color: #c084fc;
             }
+            .btn-autospin-start.btn-free-auto {
+                background: rgba(59,130,246,0.15);
+                border-color: rgba(59,130,246,0.35);
+                color: #60a5fa;
+            }
             .btn-autospin-start:hover {
-                background: rgba(168,85,247,0.25);
-                border-color: #a855f7;
+                filter: brightness(1.2);
             }
             .btn-autospin-stop {
                 background: rgba(239,68,68,0.15);
@@ -639,67 +599,40 @@ export class WheelEngine {
                 background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f43f5e 100%);
                 box-shadow: 0 4px 18px rgba(236,72,153,0.4);
             }
+            .main-spin-action.spin-free {
+                background: linear-gradient(135deg, #3b82f6 0%, #0284c7 100%);
+                box-shadow: 0 4px 18px rgba(59,130,246,0.45);
+            }
             .main-spin-action.spin-skip {
                 background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
                 box-shadow: 0 4px 18px rgba(239,68,68,0.45);
             }
-            .main-spin-action.spin-free {
-                background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-                box-shadow: 0 4px 18px rgba(59,130,246,0.5);
-            }
-            .main-spin-action.spin-bonus {
-                background: linear-gradient(135deg, #ec4899 0%, #be123c 100%);
-                box-shadow: 0 4px 20px rgba(236,72,153,0.6);
-                animation: rateGlow 1.2s infinite alternate;
-            }
-            .main-spin-action:hover:not(:disabled) {
-                transform: translateY(-2px);
-                filter: brightness(1.1);
-            }
-            .main-spin-action:active:not(:disabled) {
-                transform: translateY(0);
-            }
-            .main-spin-action:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
+            .main-spin-action:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+            .main-spin-action:active:not(:disabled) { transform: translateY(0); }
+            .main-spin-action:disabled { opacity: 0.45; cursor: not-allowed; }
 
             @media (max-width: 480px) {
-                .wheel-arena-frame {
-                    width: 290px;
-                    height: 290px;
-                }
-                .wheel-bezel-ring {
-                    width: 290px;
-                    height: 290px;
-                }
-                #wheel-pixi-canvas {
-                    width: 280px !important;
-                    height: 280px !important;
-                }
-                .main-spin-action {
-                    font-size: 1.1rem;
-                    padding: 0.85rem 1rem;
-                }
+                .wheel-arena-frame, .wheel-bezel-ring { width: 290px; height: 290px; }
+                #wheel-pixi-canvas { width: 280px !important; height: 280px !important; }
+                .main-spin-action { font-size: 1.1rem; padding: 0.85rem 1rem; }
             }
         </style>
         `;
     }
 
-    bindEvents(container, onBalanceRefresh) {
-        this.onBalanceRefresh = onBalanceRefresh;
-
-        // Initialize PixiJS WebGL Wheel Stage
+    initWheelGraphic(container) {
         const canvas = container.querySelector('#wheel-pixi-canvas');
         const fallback = container.querySelector('#wheel-svg-fallback');
+        const sectors = this.getActiveSectors();
+
         if (canvas && typeof window !== 'undefined' && window.PIXI) {
             try {
                 this.pixiWheel?.destroy();
-                this.pixiWheel = new PixiWheelStage(canvas, SECTORS, { size: 320 });
+                this.pixiWheel = new PixiWheelStage(canvas, sectors, { size: 320 });
                 canvas.style.display = 'block';
                 if (fallback) fallback.style.display = 'none';
             } catch (err) {
-                console.warn('[WheelEngine] PixiJS WebGL init failed, using SVG fallback:', err);
+                console.warn('[WheelEngine] WebGL init fallback:', err);
                 if (canvas) canvas.style.display = 'none';
                 if (fallback) fallback.style.display = 'block';
             }
@@ -707,12 +640,35 @@ export class WheelEngine {
             if (canvas) canvas.style.display = 'none';
             if (fallback) fallback.style.display = 'block';
         }
+    }
+
+    bindEvents(container, onBalanceRefresh) {
+        this.onBalanceRefresh = onBalanceRefresh;
+
+        // Initialize Wheel graphic stage
+        this.initWheelGraphic(container);
 
         const betInput = document.getElementById('wheel-bet-input');
         if (betInput) {
             import('../ui/UIManager.js').then(m => m.default.setupNumericInput(betInput));
         }
 
+        // Mode Switching
+        document.getElementById('btn-switch-main-wheel')?.addEventListener('click', () => {
+            if (this.isSpinning) return;
+            this.switchMode('main', container);
+        });
+
+        document.getElementById('btn-switch-free-wheel')?.addEventListener('click', () => {
+            if (this.isSpinning) return;
+            if (this.freeSpinsRemaining <= 0) {
+                ui.toast({ type: 'warning', title: 'Tiket Habis', message: 'Anda tidak memiliki Tiket Spin Gratis saat ini! Putar Roda Utama untuk mendapatkannya.' });
+                return;
+            }
+            this.switchMode('free', container);
+        });
+
+        // Preset Chips
         container.querySelectorAll('.wheel-preset').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isSpinning) return;
@@ -728,6 +684,7 @@ export class WheelEngine {
             });
         });
 
+        // Spin Button Action
         document.getElementById('btn-wheel-spin')?.addEventListener('click', () => {
             if (this.isSpinning) {
                 this.skipRequested = true;
@@ -742,49 +699,26 @@ export class WheelEngine {
             }
         });
 
-        // Convert Free Spins
-        const convertFreeBtn = document.getElementById('btn-convert-free');
-        if (convertFreeBtn) {
-            convertFreeBtn.addEventListener('click', () => {
-                if (this.isSpinning) return;
-                if (this.freeSpinsRemaining >= 10) {
-                    this.freeSpinsRemaining -= 10;
-                    this.lotteryTokens += 1;
-                    ui.success('Berhasil menukarkan 10 Putaran Gratis menjadi 1 Token Lotre! 🎫', 'Tukar Token');
-                    const gamePanel = document.getElementById('casino-game-panel');
-                    if (gamePanel) {
-                        gamePanel.innerHTML = this.getHTML();
-                        this.bindEvents(gamePanel, this.onBalanceRefresh);
-                    }
-                }
-            });
-        }
-
-        // Convert Bonus Spins
-        const convertBonusBtn = document.getElementById('btn-convert-bonus');
-        if (convertBonusBtn) {
-            convertBonusBtn.addEventListener('click', () => {
-                if (this.isSpinning) return;
-                if (this.bonusSpinsRemaining >= 5) {
-                    this.bonusSpinsRemaining -= 5;
-                    this.lotteryTokens += 1;
-                    ui.success('Berhasil menukarkan 5 Putaran Bonus menjadi 1 Token Lotre! 🎫', 'Tukar Token');
-                    const gamePanel = document.getElementById('casino-game-panel');
-                    if (gamePanel) {
-                        gamePanel.innerHTML = this.getHTML();
-                        this.bindEvents(gamePanel, this.onBalanceRefresh);
-                    }
-                }
-            });
-        }
-
         // Auto Spin Buttons
         document.getElementById('btn-wheel-auto-start')?.addEventListener('click', () => {
-            const countInput = document.getElementById('wheel-autospin-count');
-            const count = parseInt(countInput ? countInput.value : '10', 10);
-            if (isNaN(count) || count <= 0) {
-                ui.error('Masukkan jumlah putaran otomatis yang valid!');
-                return;
+            const isFree = this.activeWheelMode === 'free';
+            let count = 10;
+            if (isFree) {
+                // In free mode, default to using all available free spins or count input
+                const countInput = document.getElementById('wheel-autospin-count');
+                const userVal = parseInt(countInput ? countInput.value : '0', 10);
+                count = userVal > 0 ? Math.min(userVal, this.freeSpinsRemaining) : this.freeSpinsRemaining;
+                if (count <= 0) {
+                    ui.error('Tidak ada tiket putaran gratis yang tersisa!');
+                    return;
+                }
+            } else {
+                const countInput = document.getElementById('wheel-autospin-count');
+                count = parseInt(countInput ? countInput.value : '10', 10);
+                if (isNaN(count) || count <= 0) {
+                    ui.error('Masukkan jumlah putaran otomatis yang valid!');
+                    return;
+                }
             }
             this.startAutoSpin(count);
         });
@@ -794,9 +728,23 @@ export class WheelEngine {
         });
     }
 
+    switchMode(mode, container) {
+        if (this.activeWheelMode === mode) return;
+        this.activeWheelMode = mode;
+        this.stopAutoSpin();
+
+        // Refresh entire UI cleanly when intentionally switching mode
+        container.innerHTML = this.getHTML();
+        this.bindEvents(container, this.onBalanceRefresh);
+    }
+
     startAutoSpin(count) {
         this.autoSpinCount = count;
         this.isAutoSpinning = true;
+        mobileHandler.requestWakeLock('wheel-auto');
+        if (mobileHandler.isMobile) {
+            ui.info('Auto-Spin Roda aktif. Layar HP akan tetap terjaga sampai putaran selesai.', '📱 Layar Tetap Aktif');
+        }
 
         const startBtn = document.getElementById('btn-wheel-auto-start');
         const stopBtn = document.getElementById('btn-wheel-auto-stop');
@@ -813,6 +761,9 @@ export class WheelEngine {
     stopAutoSpin() {
         this.isAutoSpinning = false;
         this.autoSpinCount = 0;
+        if (!this.isSpinning) {
+            mobileHandler.releaseWakeLock();
+        }
 
         const startBtn = document.getElementById('btn-wheel-auto-start');
         const stopBtn = document.getElementById('btn-wheel-auto-stop');
@@ -821,25 +772,77 @@ export class WheelEngine {
         if (stopBtn) stopBtn.style.display = 'none';
     }
 
+    /**
+     * UPDATE UI IN-PLACE:
+     * Does NOT rebuild or re-render innerHTML of the entire wheel container!
+     * Leaves the PixiJS canvas and its landing rotation angle intact!
+     */
+    updateUIInPlace() {
+        // 1. Update Free Spins badge & counts
+        const freeBadge = document.getElementById('badge-free-spins-count');
+        if (freeBadge) freeBadge.textContent = `${this.freeSpinsRemaining} SPIN TERSEDIA`;
+        
+        const freeValBox = document.getElementById('free-spins-val-box');
+        if (freeValBox) freeValBox.textContent = `${this.freeSpinsRemaining} SPIN`;
+
+        // 2. Update Spin Button text
+        const spinBtn = document.getElementById('btn-wheel-spin');
+        if (spinBtn) {
+            spinBtn.disabled = false;
+            if (this.activeWheelMode === 'free') {
+                spinBtn.className = 'main-spin-action spin-free';
+                spinBtn.innerHTML = `🎁 PUTAR GRATIS (${this.freeSpinsRemaining} Sisa)`;
+                if (this.freeSpinsRemaining <= 0) spinBtn.disabled = true;
+            } else {
+                spinBtn.className = 'main-spin-action spin-normal';
+                spinBtn.innerHTML = '🎡 PUTAR RODA VIP';
+            }
+        }
+
+        // 3. Update auto spin stop button text if running
+        if (this.isAutoSpinning) {
+            const stopBtn = document.getElementById('btn-wheel-auto-stop');
+            if (stopBtn) stopBtn.textContent = `⏹️ STOP (${this.autoSpinCount})`;
+        }
+
+        // 4. Update rate status badge
+        const root = document.getElementById('casino-game-panel');
+        if (root) {
+            const badge = root.querySelector('.rate-badge');
+            if (badge) badge.outerHTML = this.getRateStatusHTML();
+        }
+
+        // 5. Update balance display at top header
+        this.onBalanceRefresh?.();
+    }
+
     async spin() {
         if (this.isSpinning) return;
 
-        const isFree = this.freeSpinsRemaining > 0;
-        const isBonus = this.bonusSpinsRemaining > 0;
+        const isFreeMode = this.activeWheelMode === 'free';
+        const sectors = this.getActiveSectors();
         
         const input = document.getElementById('wheel-bet-input');
         const betAmount = input?.getNumericValue ? input.getNumericValue() : (parseInt(input?.value.replace(/,/g, '') || '0', 10));
 
-        // Validation only if spin is paid
-        if (!isFree && !isBonus) {
+        // Validation based on mode
+        if (isFreeMode) {
+            if (this.freeSpinsRemaining <= 0) {
+                ui.error('Tiket Putaran Gratis habis!');
+                this.stopAutoSpin();
+                return;
+            }
+        } else {
             if (betAmount <= 0) { ui.error('Masukkan jumlah taruhan yang valid!'); this.stopAutoSpin(); return; }
             const balance = gameState.getBalance();
-            if (betAmount > balance) { ui.error('Saldo tidak mencukupi!'); this.stopAutoSpin(); return; }
+            if (betAmount > balance) { ui.error('Saldo kas tidak mencukupi!'); this.stopAutoSpin(); return; }
         }
 
         this.isSpinning = true;
         this.skipRequested = false;
+        mobileHandler.requestWakeLock('wheel-spin');
         import('../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
+
         const spinBtn = document.getElementById('btn-wheel-spin');
         if (spinBtn) {
             spinBtn.disabled = false;
@@ -850,66 +853,70 @@ export class WheelEngine {
         const winDisplay = document.getElementById('wheel-win-display');
         if (winDisplay) winDisplay.innerHTML = `<span class="marquee-placeholder">Memutar roda keberuntungan...</span>`;
 
-        // Deduct bet if not free/bonus
-        if (!isFree && !isBonus) {
-            financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Roda Keberuntungan');
-            this.onBalanceRefresh?.();
+        // Deduct cost
+        if (isFreeMode) {
+            this.freeSpinsRemaining--;
         } else {
-            if (isBonus) {
-                this.bonusSpinsRemaining--;
-            } else {
-                this.freeSpinsRemaining--;
-            }
+            financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Roda Keberuntungan VIP');
+            this.onBalanceRefresh?.();
         }
 
-        // Increment rate plays
-        let plays = gameState.get('casino.ratePlays') || 0;
-        plays++;
-        gameState.set('casino.ratePlays', plays);
-        const rateOn = plays >= 250;
+        // Read accumulated luck & rate status from loss pity engine
+        const luckInfo = casinoVolatility.getLuckInfo();
+        const luck = luckInfo.multiplier;
+        const rateOn = luckInfo.isRateOn;
 
-        const donations = gameState.get('donations') || { luckMultiplier: 1.0 };
-        let luck = donations.luckMultiplier || 1.0;
-        if (rateOn) {
-            luck = Math.max(luck, 3.5);
-        }
-
-        // Sector weights
-        const weights = SECTORS.map((s) => {
-            let w = 1.0;
-            if (s.multiplier === 100.0) w = 0.05 * luck;
-            else if (s.multiplier === 25.0) w = 0.15 * luck;
-            else if (s.multiplier === 10.0) w = 0.40 * luck;
-            else if (s.multiplier === 5.0) w = 0.85 * luck;
-            else if (s.multiplier === 3.0) w = 1.30 * luck;
-            else if (s.multiplier === 2.0) w = 1.80;
-            else if (s.multiplier === 1.5) w = 2.40;
-            else if (s.multiplier === 1.2) w = 2.80;
-            else if (s.multiplier === 0.8) w = 2.50;
-            else if (s.type === 'freespin') w = 0.70 * luck;
-            else if (s.type === 'lottery') w = 0.65 * luck;
-            else if (s.type === 'bonusspin') w = 0.08 * luck;
-            return w;
-        });
-
-        const totalWeight = weights.reduce((a, b) => a + b, 0);
-        let rVal = Math.random() * totalWeight;
+        // Pick Sector Index
         let selectedIdx = 0;
-        for (let i = 0; i < SECTORS.length; i++) {
-            if (rVal < weights[i]) {
-                selectedIdx = i;
-                break;
+        if (isFreeMode) {
+            // Free Spin Wheel weights
+            const weights = sectors.map(s => {
+                let w = 1.0;
+                if (s.fixedCash === 5000000) w = 0.05 * luck;
+                else if (s.fixedCash === 1000000) w = 0.25 * luck;
+                else if (s.fixedCash === 500000) w = 0.60 * luck;
+                else if (s.amount === 5) w = 0.50 * luck;
+                else if (s.type === 'lottery') w = 0.90 * luck;
+                return w;
+            });
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            let rVal = Math.random() * totalWeight;
+            for (let i = 0; i < sectors.length; i++) {
+                if (rVal < weights[i]) { selectedIdx = i; break; }
+                rVal -= weights[i];
             }
-            rVal -= weights[i];
+        } else {
+            // Main VIP Wheel weights
+            const weights = sectors.map((s) => {
+                let w = 1.0;
+                if (s.multiplier === 100.0) w = 0.05 * luck;
+                else if (s.multiplier === 25.0) w = 0.15 * luck;
+                else if (s.multiplier === 10.0) w = 0.40 * luck;
+                else if (s.multiplier === 5.0) w = 0.85 * luck;
+                else if (s.multiplier === 3.0) w = 1.30 * luck;
+                else if (s.multiplier === 2.0) w = 1.80;
+                else if (s.multiplier === 1.5) w = 2.40;
+                else if (s.multiplier === 1.2) w = 2.80;
+                else if (s.multiplier === 0.8) w = 2.50;
+                else if (s.type === 'freespin') w = 0.80 * luck;
+                else if (s.type === 'lottery') w = 0.70 * luck;
+                return w;
+            });
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            let rVal = Math.random() * totalWeight;
+            for (let i = 0; i < sectors.length; i++) {
+                if (rVal < weights[i]) { selectedIdx = i; break; }
+                rVal -= weights[i];
+            }
         }
 
-        const sector = SECTORS[selectedIdx];
-        const anglePerSector = 360 / SECTORS.length;
+        const sector = sectors[selectedIdx];
+        const anglePerSector = 360 / sectors.length;
 
-        // Spin rotation physics
+        // Spin rotation physics without resetting
         if (this.pixiWheel) {
             await this.pixiWheel.spinTo(selectedIdx, {
-                duration: this.skipRequested ? 0.4 : 4.0
+                duration: this.skipRequested ? 0.35 : 4.0
             });
         } else {
             const rotationTarget = 360 * 5 + (360 - (selectedIdx * anglePerSector) - (anglePerSector / 2));
@@ -936,96 +943,108 @@ export class WheelEngine {
             }
         }
 
-        // Payout evaluation
-        const payoutMultiplier = isBonus ? 3 : 1;
+        // Payout Rewards Evaluation
         let rewardLabel = '';
 
-        if (sector.type === 'usd') {
-            const payout = Math.round(betAmount * sector.multiplier * payoutMultiplier);
-            if (payout > 0) {
-                financeManager.addIncome(payout, 'Investasi', `Hasil Roda: ${sector.label} (${payoutMultiplier}x multiplier)`);
-                rewardLabel = `+${financeManager.formatCurrency(payout)} TC`;
-                if (sector.multiplier >= 25.0) {
-                    gameState.set('casino.ratePlays', 0);
-                }
+        if (isFreeMode) {
+            if (sector.type === 'cash') {
+                financeManager.addIncome(sector.fixedCash, 'Investasi', `Hadiah Roda Gratis: ${sector.label}`);
+                rewardLabel = `+${financeManager.formatCurrency(sector.fixedCash)} TC`;
+            } else if (sector.type === 'lottery') {
+                this.lotteryTokens += sector.amount;
+                rewardLabel = `🎟️ +${sector.amount} TIKET LOTRE`;
+            } else if (sector.type === 'freespin') {
+                this.freeSpinsRemaining += sector.amount;
+                rewardLabel = `🎁 +${sector.amount} TIKET PUTARAN GRATIS`;
             }
-        } 
-        else if (sector.type === 'lottery') {
-            const tickets = (sector.amount || 5) * (isBonus ? 2 : 1);
-            this.lotteryTokens += tickets;
-            rewardLabel = `🎟️ +${tickets} TIKET LOTRE`;
-        }
-        else if (sector.type === 'freespin') {
-            this.freeSpinsRemaining += 10;
-            rewardLabel = `🎁 +10 PUTARAN GRATIS`;
-        } 
-        else if (sector.type === 'bonusspin') {
-            this.bonusSpinsRemaining += 50;
-            rewardLabel = `🔥 +50 PUTARAN BONUS (3X)`;
-            gameState.set('casino.ratePlays', 0);
+        } else {
+            if (sector.type === 'usd') {
+                const payout = Math.round(betAmount * sector.multiplier);
+                if (payout > 0) {
+                    financeManager.addIncome(payout, 'Investasi', `Hasil Roda VIP: ${sector.label}`);
+                    rewardLabel = `+${financeManager.formatCurrency(payout)} TC`;
+                    if (sector.multiplier >= 25.0) gameState.set('casino.ratePlays', 0);
+                }
+            } else if (sector.type === 'lottery') {
+                this.lotteryTokens += sector.amount;
+                rewardLabel = `🎟️ +${sector.amount} TIKET LOTRE`;
+            } else if (sector.type === 'freespin') {
+                this.freeSpinsRemaining += sector.amount;
+                rewardLabel = `🎁 +${sector.amount} TIKET PUTARAN GRATIS!`;
+            }
         }
 
-        const isJackpot = sector.type === 'bonusspin' || (sector.type === 'usd' && sector.multiplier >= 25.0);
+        // Celebration & Effects & Rate Pity Tracking
+        const isJackpot = (!isFreeMode && sector.multiplier >= 25.0) || (isFreeMode && sector.fixedCash >= 1000000);
         if (isJackpot) {
-            const winAmount = Math.round(betAmount * (sector.multiplier || 50) * payoutMultiplier);
+            casinoVolatility.recordBigWin();
+            const winAmount = isFreeMode ? sector.fixedCash : Math.round(betAmount * sector.multiplier);
             pixiEffects.celebrateWin({
                 amount: winAmount,
-                type: sector.multiplier >= 100.0 ? 'jackpot' : 'mega',
+                type: (sector.multiplier >= 100.0 || sector.fixedCash >= 5000000) ? 'jackpot' : 'mega',
                 onComplete: () => this.onBalanceRefresh?.()
             });
         } else {
+            if (!isFreeMode && sector.type === 'usd' && sector.multiplier < 1.0) {
+                // Net loss (e.g. 0.8x rebate)
+                casinoVolatility.recordLoss();
+            }
             pixiEffects.flyChipsToHeader(winDisplay, 12);
             import('../ui/AuraSound.js').then(m => m.default.playClaimMoney());
         }
 
+        // Refresh rate badges
+        const badge = document.querySelector('.rate-badge');
+        if (badge) badge.outerHTML = this.getRateStatusHTML();
+        const headerRate = document.getElementById('header-rate-badge-container');
+        if (headerRate) headerRate.innerHTML = this.getRateStatusHTML();
+
+        // Update Marquee Win Box
         if (winDisplay) {
             winDisplay.innerHTML = `<span class="win-text-gold"><span>🎉</span> <span>${sector.label}</span> <span class="win-payout-num">${rewardLabel}</span></span>`;
         }
-        ui.success(`Roda mendarat di ${sector.label}! Hadiah: ${rewardLabel}`, '🎡 Roda Berputar');
-
-        this.onBalanceRefresh?.();
-
-        const gamePanel = document.getElementById('casino-game-panel');
-        if (gamePanel) {
-            const activeInputVal = document.getElementById('wheel-bet-input')?.value || '100,000';
-            const autoVal = document.getElementById('wheel-autospin-count')?.value || '10';
-
-            gamePanel.innerHTML = this.getHTML();
-            this.bindEvents(gamePanel, this.onBalanceRefresh);
-            
-            const newInput = document.getElementById('wheel-bet-input');
-            if (newInput) newInput.value = activeInputVal;
-            const newAuto = document.getElementById('wheel-autospin-count');
-            if (newAuto) newAuto.value = autoVal;
-        }
+        ui.success(`Roda mendarat di ${sector.label}! Hadiah: ${rewardLabel}`, '🎡 Hasil Putaran');
 
         this.isSpinning = false;
-        
-        const freshSpinBtn = document.getElementById('btn-wheel-spin');
-        if (freshSpinBtn) {
-            freshSpinBtn.disabled = false;
+        if (!this.isAutoSpinning) {
+            mobileHandler.releaseWakeLock();
         }
 
-        const hasSpecialSpins = this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0;
-        
+        // IN-PLACE UPDATE WITHOUT REFRESHING THE WHEEL / DOM
+        this.updateUIInPlace();
+
+        // Auto spin loop continuation (Works for BOTH Wheels!)
         if (this.isAutoSpinning) {
-            if (hasSpecialSpins) {
-                const stopBtn = document.getElementById('btn-wheel-auto-stop');
-                if (stopBtn) stopBtn.textContent = `⏹️ STOP (${this.autoSpinCount})`;
-                
-                setTimeout(() => {
-                    if (this.isAutoSpinning) this.spin();
-                }, 1400);
-            } else if (this.autoSpinCount > 1) {
-                this.autoSpinCount--;
-                const stopBtn = document.getElementById('btn-wheel-auto-stop');
-                if (stopBtn) stopBtn.textContent = `⏹️ STOP (${this.autoSpinCount})`;
-                
-                setTimeout(() => {
-                    if (this.isAutoSpinning) this.spin();
-                }, 1400);
+            if (isFreeMode) {
+                // Free Spin auto loop: continues until free spins run out or user stops
+                if (this.freeSpinsRemaining > 0 && this.autoSpinCount > 1) {
+                    this.autoSpinCount--;
+                    const stopBtn = document.getElementById('btn-wheel-auto-stop');
+                    if (stopBtn) stopBtn.textContent = `⏹️ STOP (${Math.min(this.autoSpinCount, this.freeSpinsRemaining)})`;
+                    
+                    setTimeout(() => {
+                        if (this.isAutoSpinning && this.freeSpinsRemaining > 0) this.spin();
+                        else this.stopAutoSpin();
+                    }, 1400);
+                } else {
+                    this.stopAutoSpin();
+                    if (this.freeSpinsRemaining <= 0) {
+                        ui.info('Semua tiket putaran gratis telah selesai diputar!', '🎁 Auto Spin Selesai');
+                    }
+                }
             } else {
-                this.stopAutoSpin();
+                // Cash Wheel auto loop
+                if (this.autoSpinCount > 1) {
+                    this.autoSpinCount--;
+                    const stopBtn = document.getElementById('btn-wheel-auto-stop');
+                    if (stopBtn) stopBtn.textContent = `⏹️ STOP (${this.autoSpinCount})`;
+                    
+                    setTimeout(() => {
+                        if (this.isAutoSpinning) this.spin();
+                    }, 1400);
+                } else {
+                    this.stopAutoSpin();
+                }
             }
         }
     }

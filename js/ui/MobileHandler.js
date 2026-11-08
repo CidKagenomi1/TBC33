@@ -31,6 +31,11 @@ export class MobileHandler {
         this._swipeStartTime = 0;
         this._activeEngine = null;
         this._initialized = false;
+
+        // Screen Wake Lock states
+        this._wakeLock = null;
+        this._wakeLockActive = false;
+        this._noSleepVideo = null;
     }
 
     /**
@@ -53,6 +58,13 @@ export class MobileHandler {
             this.detectCapabilities();
             this.updateViewportHeight();
             this.updateOrientation();
+        });
+
+        // Re-acquire Wake Lock when user returns to tab if spins are still running
+        document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState === 'visible' && this._wakeLockActive) {
+                await this.requestWakeLock('tab-return');
+            }
         });
 
         // Initialize Quick Bet Sheet DOM
@@ -152,6 +164,81 @@ export class MobileHandler {
 
     hapticError() {
         this.vibrate([40, 30, 40]);
+    }
+
+    // ── Screen Wake Lock Management (Anti-Sleep API) ──
+
+    /**
+     * Request Screen Wake Lock (API + Fallback)
+     * Keeps the mobile device screen awake while spin or auto-spin sequence is active.
+     */
+    async requestWakeLock(reason = 'spin') {
+        if (typeof window === 'undefined') return;
+        this._wakeLockActive = true;
+
+        // 1. Native Screen Wake Lock API (Chrome Android, Safari iOS 16.4+, Edge, Samsung Internet)
+        if ('wakeLock' in navigator) {
+            try {
+                if (!this._wakeLock || this._wakeLock.released) {
+                    this._wakeLock = await navigator.wakeLock.request('screen');
+                    this._wakeLock.addEventListener('release', () => {
+                        this._wakeLock = null;
+                    });
+                    console.log(`📱 [MobileHandler] Wake Lock AKTIF (${reason}): Layar HP dicegah tidur.`);
+                }
+                return;
+            } catch (err) {
+                console.warn('[MobileHandler] Native Wake Lock request error:', err);
+            }
+        }
+
+        // 2. Microscopic Video Loop Fallback (For older iOS / Android browsers without navigator.wakeLock)
+        try {
+            if (!this._noSleepVideo) {
+                const video = document.createElement('video');
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+                video.setAttribute('loop', '');
+                video.setAttribute('muted', '');
+                video.muted = true;
+                // Tiny 1x1 blank webm data URL to keep display awake
+                video.src = 'data:video/webm;base64,GkXfo0AgQoaBAUL3gQFC8oEEQvOBCEKCQAR3ZWJtQoeBAkKFgQIYUkoakCaVhFoKAExBWWluZ1ZLAAAAAAAKF0NVYXBwZWRCdWZmZXJzAAAAAE5n/wA';
+                video.style.position = 'fixed';
+                video.style.top = '-9999px';
+                video.style.left = '-9999px';
+                video.style.opacity = '0';
+                video.style.pointerEvents = 'none';
+                video.style.width = '1px';
+                video.style.height = '1px';
+                document.body.appendChild(video);
+                this._noSleepVideo = video;
+            }
+            if (this._noSleepVideo && this._noSleepVideo.paused) {
+                await this._noSleepVideo.play().catch(() => {});
+            }
+        } catch (e) {}
+    }
+
+    /**
+     * Release Screen Wake Lock when all spins are finished.
+     */
+    async releaseWakeLock() {
+        this._wakeLockActive = false;
+        if (this._wakeLock) {
+            try {
+                await this._wakeLock.release();
+            } catch (err) {
+                console.warn('[MobileHandler] Wake Lock release error:', err);
+            }
+            this._wakeLock = null;
+        }
+
+        if (this._noSleepVideo && !this._noSleepVideo.paused) {
+            try {
+                this._noSleepVideo.pause();
+            } catch (e) {}
+        }
+        console.log('📱 [MobileHandler] Wake Lock NON-AKTIF: Layar HP kembali ke batas timeout normal.');
     }
 
     // ── Physical Swipe-to-Spin Gesture on Reels ──

@@ -73,6 +73,13 @@ class PixiEffects {
 
         // Theme specifications
         const THEMES = {
+            win: {
+                title: '✨ NICE WIN! ✨',
+                gradient: 'linear-gradient(180deg, #ffffff 0%, #d1fae5 20%, #10b981 45%, #047857 50%, #6ee7b7 75%, #064e3b 100%)',
+                glow: '#10b981',
+                borderColor: '#059669',
+                coinCount: 100
+            },
             big: {
                 title: '🔥 BIG WIN! 🔥',
                 gradient: 'linear-gradient(180deg, #ffffff 0%, #fff4b8 20%, #ffd700 45%, #b47800 50%, #ffe270 75%, #784c00 100%)',
@@ -93,12 +100,23 @@ class PixiEffects {
                 glow: '#f43f5e',
                 borderColor: '#e11d48',
                 coinCount: 420
+            },
+            jackpot: {
+                title: '🏆 GRAND JACKPOT! 🏆',
+                gradient: 'linear-gradient(180deg, #ffffff 0%, #fef08a 20%, #eab308 45%, #a16207 50%, #fde047 75%, #713f12 100%)',
+                glow: '#eab308',
+                borderColor: '#ca8a04',
+                coinCount: 500
             }
         };
 
+        // Normalize targetTier to ensure it exists in THEMES
+        const normalizedTier = (targetTier && THEMES[targetTier]) ? targetTier : (finalRatio >= 100 ? 'sensational' : (finalRatio >= 40 ? 'mega' : 'big'));
+        const activeTheme = THEMES[normalizedTier] || THEMES.big;
+
         let currentTier = 'big';
         const initialTheme = THEMES.big;
-        const duration = targetTier === 'sensational' ? 4.2 : (targetTier === 'mega' ? 3.2 : 2.4);
+        const duration = (normalizedTier === 'jackpot' || normalizedTier === 'sensational') ? 4.2 : (normalizedTier === 'mega' ? 3.2 : 2.4);
 
         // Render HTML content
         this.overlayContainer.innerHTML = `
@@ -189,7 +207,7 @@ class PixiEffects {
         // Start PixiJS WebGL particle shower with targetTier intensity
         let pixiCleanup = null;
         if (PIXI) {
-            pixiCleanup = this._startPixiCoinShower('win-fx-canvas', THEMES[targetTier].coinCount, THEMES[targetTier].glow);
+            pixiCleanup = this._startPixiCoinShower('win-fx-canvas', activeTheme.coinCount, activeTheme.glow);
         }
 
         const card = document.getElementById('win-fx-card');

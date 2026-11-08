@@ -1,11 +1,14 @@
 /**
- * LotteryEngine.js - VIP 4D/3D/2D Togel Digital Terminal
- * Mengadopsi mekanisme lotre/togel asli dunia nyata dengan mata uang virtual (TC):
- * - Pasar 4D (Odds 3000x), 3D (Odds 400x), 2D (Odds 70x)
- * - Pasar Colok Bebas (Tebak 1 angka di mana saja, odds 1.55x)
- * - Pasar 50:50 (Besar/Kecil & Genap/Ganjil di 2D belakang, odds 1.95x)
- * - Animasi 4 Drum Reel Silinder (As, Kop, Kepala, Ekor)
- * - Quick Pick / Angka Hoki Acak & Papan Result Macau/Singapore Pools
+ * LotteryEngine.js - Refactored Luxury VIP Togel 4D Terminal
+ * Theme: Cyber-VIP Arcade Cabinet with Gold Bezel & Mechanical Tumblers
+ * Features:
+ * - Ultra-responsive, compact luxury UI matching Slot Theater
+ * - 4 Mechanical Tumbler Drums (As, Kop, Kepala, Ekor) with smooth 3D tumbler lighting
+ * - Dual-tab Market navigation:
+ *   1) 🎯 4D / 3D / 2D (Straight Guessing with Quick Digit Fillers & Preset Packages)
+ *   2) 🎲 Colok Bebas & 50:50 (Quick Action Betting)
+ * - Live Draw countdown, realistic drum rolling, and instant win celebration
+ * - In-place DOM updates preventing unnecessary layout jumps
  */
 
 import financeManager from '../finance/FinanceManager.js';
@@ -16,28 +19,31 @@ import pixiEffects from '../graphics/PixiEffects.js';
 export class LotteryEngine {
     constructor(onBalanceRefresh) {
         this.onBalanceRefresh = onBalanceRefresh;
-        this.activeMarketTab = '4d'; // '4d' | 'colok' | 'fifty'
+        this.activeMarketTab = '4d'; // '4d' | 'quick'
         this.isDrawing = false;
         
-        // Form states
-        this.digits = ['', '', '', '']; // [As, Kop, Kepala, Ekor]
-        this.selectedColokDigit = 7;
-        this.selectedFiftyChoice = 'besar'; // 'besar' | 'kecil' | 'genap' | 'ganjil'
+        // 4D Digits: [As, Kop, Kepala, Ekor]
+        this.digits = ['7', '4', '2', '9'];
+        this.activeDigitSlot = 0; // Current active slot index (0 - 3)
 
-        // Bet distribution for 4D/3D/2D
+        // Package toggles
         this.bet4D = true;
         this.bet3D = true;
         this.bet2D = true;
 
-        this.ticketUnitCost = 10000; // $10,000 per unit
+        // Quick Bets states
+        this.selectedColokDigit = 7;
+        this.selectedFiftyChoice = 'besar'; // 'besar' | 'kecil' | 'genap' | 'ganjil'
+
+        this.ticketUnitCost = 10000;
     }
 
     getRateStatusHTML() {
         const plays = gameState.get('casino.ratePlays') || 0;
         const rateOn = plays >= 250;
         return rateOn 
-            ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.35rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.75rem; padding:0.3rem 0.75rem; border-radius:999px; box-shadow:0 0 14px rgba(239,68,68,0.6); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; letter-spacing:0.06em; border: 1.5px solid #fff;">⚡ RATE ON (ANGKA HOKI KELUAR!)</div>`
-            : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.35rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.65); font-weight:800; font-size:0.72rem; padding:0.25rem 0.6rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.06em;">⚡ RATE: OFF (${plays}/250 SPINS)</div>`;
+            ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.3rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.7rem; padding:0.2rem 0.6rem; border-radius:999px; box-shadow:0 0 10px rgba(239,68,68,0.6); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; border: 1.5px solid #fff;">⚡ RATE ON</div>`
+            : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.3rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.65); font-weight:800; font-size:0.68rem; padding:0.18rem 0.5rem; border-radius:999px;">RATE: OFF (${plays}/250)</div>`;
     }
 
     get lotteryTokens() {
@@ -50,7 +56,7 @@ export class LotteryEngine {
     getJackpot() {
         let jp = gameState.get('casino.lotteryJackpot');
         if (jp === undefined || jp === null) {
-            jp = 25000000; // start at $25,000,000
+            jp = 25000000;
             gameState.set('casino.lotteryJackpot', jp);
         }
         return jp;
@@ -76,596 +82,817 @@ export class LotteryEngine {
         const jackpot = this.getJackpot();
         const history = this.getHistory();
 
-        // Render recent result ticker
-        const historyHTML = history.map(h => `
-            <div class="result-row ${h.isWin ? 'won' : ''}">
-                <div class="result-left">
-                    <span class="result-badge">${h.numbers}</span>
-                    <span class="result-market">${h.market}</span>
-                </div>
-                <div class="result-right">
-                    <span class="result-payout ${h.isWin ? 'win-text' : 'lose-text'}">
-                        ${h.isWin ? '+' + financeManager.formatCurrency(h.payout) + ' TC' : 'ZONK'}
-                    </span>
-                </div>
+        const historyRows = history.slice(0, 3).map(h => `
+            <div class="hist-chip ${h.isWin ? 'won' : ''}">
+                <span class="hist-num">${h.numbers}</span>
+                <span class="hist-tag">${h.market}</span>
+                <span class="hist-win ${h.isWin ? 'win' : ''}">${h.isWin ? '+' + financeManager.formatCurrency(h.payout) : 'ZONK'}</span>
             </div>
-        `).slice(0, 4).join('');
+        `).join('');
 
         return `
-        <div class="togel-suite-container">
-            <!-- Header Bar -->
-            <div class="togel-header">
-                <button type="button" class="btn-lobby-pill" title="Buka Menu Game (L)"><span>☰</span> LOBBY / GANTI GAME</button>
-                <h3 class="togel-title">
-                    🎫 <span class="title-grad">VIP 4D TOGEL TERMINAL</span>
-                </h3>
-                <p class="togel-sub">PASARAN RESMI 4D • 3D • 2D • COLOK BEBAS • BESAR/KECIL</p>
-                <div class="rate-badge-wrap">
+        <div class="togel-theater-root">
+            <!-- Top Industrial Lights -->
+            <div class="theater-marquee-lights">
+                ${Array.from({length: 11}, (_, i) => `<div class="mini-bulb ${i % 2 === 0 ? 'gold' : 'amber'}"></div>`).join('')}
+            </div>
+
+            <!-- Arcade Header -->
+            <div class="togel-header-card">
+                <div class="header-left">
+                    <button type="button" class="btn-lobby-pill" title="Buka Menu Game (L)"><span>☰</span> LOBBY</button>
+                    <div class="header-titles">
+                        <h3 class="arcade-title">🎫 VIP 4D TOGEL</h3>
+                        <span class="arcade-sub">RESMI SINGAPORE &amp; MACAU 4D POOLS</span>
+                    </div>
+                </div>
+                <div class="header-right">
                     ${this.getRateStatusHTML()}
                 </div>
             </div>
 
-            <!-- Grand Progressive 4D Jackpot Pool -->
-            <div class="jackpot-pool-vault">
-                <div class="vault-label">🏆 POOL GRAND JACKPOT 4D (STRAIGHT 3000x)</div>
-                <div class="vault-value">
-                    <span class="vault-curr">$</span>
+            <!-- Grand Progressive Jackpot Ribbon -->
+            <div class="jackpot-ribbon">
+                <div class="ribbon-glow"></div>
+                <div class="ribbon-badge">🏆 4D GRAND JACKPOT POOL</div>
+                <div class="ribbon-value">
+                    <span class="curr">$</span>
                     <span id="togel-jackpot-pool-val">${jackpot.toLocaleString('en-US')}</span>
-                </div>
-                <div class="vault-subtext">Setiap taruhan tiket menyumbang 10% ke dalam akumulasi jackpot pool</div>
-            </div>
-
-            <!-- Token Counter Bar -->
-            <div class="togel-token-strip">
-                <div class="token-left">
-                    <span class="token-icon">🎟️</span>
-                    <span class="token-label">TIKET TOKEN TOGEL:</span>
-                </div>
-                <div class="token-count" id="togel-token-display">
-                    ${this.lotteryTokens} TIKET GRATIS
+                    <span class="unit">TC</span>
                 </div>
             </div>
 
-            <!-- Interactive Live 4-Drum Cylinder Result Stage -->
-            <div class="cylinder-stage-box">
-                <div class="stage-label-top">
-                    <span>🔴 HASIL PENGUNDIAN RESMI (AS • KOP • KEPALA • EKOR)</span>
+            <!-- 4-Reel Drum Tumbler Chamber (The Stage) -->
+            <div class="drum-chamber-theater">
+                <div class="chamber-header-strip">
+                    <span class="live-dot"></span>
+                    <span class="strip-text">LIVE MECHANICAL TUMBLER DRAW</span>
+                    <span class="token-pill" id="togel-token-display">🎟️ ${this.lotteryTokens} TIKET GRATIS</span>
                 </div>
-                <div class="drums-display-row" id="togel-drums-container">
-                    <div class="drum-cylinder" id="drum-0">
-                        <span class="drum-pos-label">AS</span>
-                        <div class="drum-digit-box">?</div>
+
+                <div class="tumblers-row" id="togel-drums-container">
+                    <div class="tumbler-col" id="drum-0">
+                        <span class="tumbler-label">AS (1)</span>
+                        <div class="tumbler-disc"><span class="digit-text">?</span></div>
                     </div>
-                    <div class="drum-cylinder" id="drum-1">
-                        <span class="drum-pos-label">KOP</span>
-                        <div class="drum-digit-box">?</div>
+                    <div class="tumbler-col" id="drum-1">
+                        <span class="tumbler-label">KOP (2)</span>
+                        <div class="tumbler-disc"><span class="digit-text">?</span></div>
                     </div>
-                    <div class="drum-cylinder" id="drum-2">
-                        <span class="drum-pos-label">KEPALA</span>
-                        <div class="drum-digit-box">?</div>
+                    <div class="tumbler-col" id="drum-2">
+                        <span class="tumbler-label">KEPALA (3)</span>
+                        <div class="tumbler-disc"><span class="digit-text">?</span></div>
                     </div>
-                    <div class="drum-cylinder" id="drum-3">
-                        <span class="drum-pos-label">EKOR</span>
-                        <div class="drum-digit-box">?</div>
+                    <div class="tumbler-col" id="drum-3">
+                        <span class="tumbler-label">EKOR (4)</span>
+                        <div class="tumbler-disc"><span class="digit-text">?</span></div>
                     </div>
                 </div>
-                <div class="drum-status-ticker" id="togel-drum-status">
-                    Silakan pasang tebakan angka Anda di bawah...
+
+                <!-- Status Marquee Ticker -->
+                <div class="chamber-status-ticker" id="togel-drum-status">
+                    Silakan racik 4 digit angka hoki Anda dan tekan PUTAR...
                 </div>
             </div>
 
-            <!-- Market Selector Tabs -->
-            <div class="market-nav-tabs">
-                <button class="market-tab-btn ${this.activeMarketTab === '4d' ? 'active' : ''}" data-tab="4d">
-                    🎯 4D / 3D / 2D
+            <!-- Market Tabs Bar -->
+            <div class="market-segmented-tabs">
+                <button class="seg-tab ${this.activeMarketTab === '4d' ? 'active' : ''}" data-tab="4d">
+                    <span class="icon">🎯</span> 4D / 3D / 2D STRAIGHT
                 </button>
-                <button class="market-tab-btn ${this.activeMarketTab === 'colok' ? 'active' : ''}" data-tab="colok">
-                    🎲 Colok Bebas (1 Angka)
-                </button>
-                <button class="market-tab-btn ${this.activeMarketTab === 'fifty' ? 'active' : ''}" data-tab="fifty">
-                    ⚖️ 50:50 (Besar/Kecil/Genap/Ganjil)
+                <button class="seg-tab ${this.activeMarketTab === 'quick' ? 'active' : ''}" data-tab="quick">
+                    <span class="icon">🎲</span> COLOK &amp; 50:50 (SIDE BETS)
                 </button>
             </div>
 
-            <!-- Betting Controls Workspace -->
-            <div class="market-workspace-panel">
+            <!-- Interactive Workspace Deck -->
+            <div class="market-workspace-deck">
                 
-                <!-- TAB 1: 4D / 3D / 2D -->
-                <div class="market-subview ${this.activeMarketTab === '4d' ? 'active' : ''}" id="view-tab-4d">
-                    <div class="input-4d-header">
-                        <span class="section-title">Masukkan 4 Digit Angka Tebakan:</span>
-                        <button id="btn-quickpick-4d" class="btn-action-pill">⚡ Acak Angka Hoki</button>
-                    </div>
-
-                    <div class="digit-inputs-row">
-                        <input type="text" maxlength="1" class="box-digit-input" id="digit-in-0" value="${this.digits[0]}" placeholder="0">
-                        <input type="text" maxlength="1" class="box-digit-input" id="digit-in-1" value="${this.digits[1]}" placeholder="0">
-                        <input type="text" maxlength="1" class="box-digit-input" id="digit-in-2" value="${this.digits[2]}" placeholder="0">
-                        <input type="text" maxlength="1" class="box-digit-input" id="digit-in-3" value="${this.digits[3]}" placeholder="0">
-                    </div>
-
-                    <!-- Package Toggles -->
-                    <div class="package-options-grid">
-                        <label class="package-checkbox-item ${this.bet4D ? 'checked' : ''}">
-                            <input type="checkbox" id="chk-bet-4d" ${this.bet4D ? 'checked' : ''}>
-                            <div class="package-info">
-                                <span class="pkg-title">Pasang 4D (4 Digit)</span>
-                                <span class="pkg-odds">Hadiah 3.000x + Jackpot</span>
+                <!-- TAB 1: 4D / 3D / 2D STRAIGHT -->
+                <div class="tab-page ${this.activeMarketTab === '4d' ? 'active' : ''}" id="page-tab-4d">
+                    <div class="digit-picker-card">
+                        <div class="picker-top-row">
+                            <div class="caption-with-badge">
+                                <span class="card-caption">MASUKKAN 4 DIGIT TEBAKAN</span>
+                                <span class="caption-sub">AS • KOP • KEPALA • EKOR</span>
                             </div>
-                        </label>
-                        <label class="package-checkbox-item ${this.bet3D ? 'checked' : ''}">
-                            <input type="checkbox" id="chk-bet-3d" ${this.bet3D ? 'checked' : ''}>
-                            <div class="package-info">
-                                <span class="pkg-title">Pasang 3D (3 Digit Belakang)</span>
-                                <span class="pkg-odds">Hadiah 400x Taruhan</span>
+                            <div class="picker-actions">
+                                <button type="button" id="btn-quickpick-4d" class="btn-micro-action" title="Acak 4 Digit Hoki">⚡ Acak Hoki</button>
+                                <button type="button" id="btn-clear-4d" class="btn-micro-action clear" title="Reset Semua Digit">🧹 Reset</button>
                             </div>
-                        </label>
-                        <label class="package-checkbox-item ${this.bet2D ? 'checked' : ''}">
-                            <input type="checkbox" id="chk-bet-2d" ${this.bet2D ? 'checked' : ''}>
-                            <div class="package-info">
-                                <span class="pkg-title">Pasang 2D (2 Digit Belakang)</span>
-                                <span class="pkg-odds">Hadiah 70x Taruhan</span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- TAB 2: Colok Bebas -->
-                <div class="market-subview ${this.activeMarketTab === 'colok' ? 'active' : ''}" id="view-tab-colok">
-                    <div class="input-4d-header">
-                        <span class="section-title">Pilih 1 Angka Bebas (0 - 9):</span>
-                        <span class="odds-highlight">Odds: 1.55x (x2 jika keluar ganda)</span>
-                    </div>
-                    <div class="colok-balls-grid">
-                        ${[0,1,2,3,4,5,6,7,8,9].map(n => `
-                            <button class="colok-digit-btn ${this.selectedColokDigit === n ? 'selected' : ''}" data-digit="${n}">
-                                ${n}
-                            </button>
-                        `).join('')}
-                    </div>
-                    <p class="market-hint">Tebakan benar jika angka yang Anda pilih keluar di salah satu dari posisi As, Kop, Kepala, atau Ekor.</p>
-                </div>
-
-                <!-- TAB 3: 50:50 (Besar/Kecil/Genap/Ganjil) -->
-                <div class="market-subview ${this.activeMarketTab === 'fifty' ? 'active' : ''}" id="view-tab-fifty">
-                    <div class="input-4d-header">
-                        <span class="section-title">Pilih Pasar 50:50 (Diambil dari 2D Ekor):</span>
-                        <span class="odds-highlight">Odds: 1.95x</span>
-                    </div>
-                    <div class="fifty-options-grid">
-                        <button class="fifty-btn ${this.selectedFiftyChoice === 'besar' ? 'selected' : ''}" data-choice="besar">
-                            <span class="btn-main">BESAR</span>
-                            <span class="btn-sub">Angka 2D: 50 - 99</span>
-                        </button>
-                        <button class="fifty-btn ${this.selectedFiftyChoice === 'kecil' ? 'selected' : ''}" data-choice="kecil">
-                            <span class="btn-main">KECIL</span>
-                            <span class="btn-sub">Angka 2D: 00 - 49</span>
-                        </button>
-                        <button class="fifty-btn ${this.selectedFiftyChoice === 'genap' ? 'selected' : ''}" data-choice="genap">
-                            <span class="btn-main">GENAP</span>
-                            <span class="btn-sub">Ekor: 0, 2, 4, 6, 8</span>
-                        </button>
-                        <button class="fifty-btn ${this.selectedFiftyChoice === 'ganjil' ? 'selected' : ''}" data-choice="ganjil">
-                            <span class="btn-main">GANJIL</span>
-                            <span class="btn-sub">Ekor: 1, 3, 5, 7, 9</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Universal Stake / Bet Controller -->
-                <div class="togel-bet-cockpit">
-                    <div class="bet-input-row">
-                        <div class="bet-label-group">
-                            <span class="lbl-taruhan">TARUHAN PER PAKET</span>
-                            <span class="lbl-sub" id="togel-cost-breakdown">Total Biaya: $ 30,000</span>
                         </div>
-                        <div class="bet-number-wrap">
-                            <span class="currency-prefix">$</span>
+
+                        <!-- 4 Discrete Digit Slot Chambers (Anti-Blowout Flex/Grid) -->
+                        <div class="digit-inputs-chamber">
+                            <div class="digit-slot-card ${this.activeDigitSlot === 0 ? 'focused' : ''}" id="slot-wrap-0" data-index="0">
+                                <span class="slot-pos-tag">AS (1)</span>
+                                <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="box-digit-input" id="digit-in-0" value="${this.digits[0] ?? '7'}" placeholder="0" autocomplete="off">
+                            </div>
+                            <div class="digit-slot-card ${this.activeDigitSlot === 1 ? 'focused' : ''}" id="slot-wrap-1" data-index="1">
+                                <span class="slot-pos-tag">KOP (2)</span>
+                                <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="box-digit-input" id="digit-in-1" value="${this.digits[1] ?? '4'}" placeholder="0" autocomplete="off">
+                            </div>
+                            <div class="digit-slot-card ${this.activeDigitSlot === 2 ? 'focused' : ''}" id="slot-wrap-2" data-index="2">
+                                <span class="slot-pos-tag">KEPALA (3)</span>
+                                <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="box-digit-input" id="digit-in-2" value="${this.digits[2] ?? '2'}" placeholder="0" autocomplete="off">
+                            </div>
+                            <div class="digit-slot-card ${this.activeDigitSlot === 3 ? 'focused' : ''}" id="slot-wrap-3" data-index="3">
+                                <span class="slot-pos-tag">EKOR (4)</span>
+                                <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="box-digit-input" id="digit-in-3" value="${this.digits[3] ?? '9'}" placeholder="0" autocomplete="off">
+                            </div>
+                        </div>
+
+                        <!-- Mobile-Friendly Quick Touch Keypad -->
+                        <div class="digit-touch-keypad">
+                            <span class="keypad-title">KEYPAD CEPAT (SENTUH LANGSUNG):</span>
+                            <div class="keypad-buttons-grid">
+                                ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(n => `
+                                    <button type="button" class="numpad-key-btn" data-key="${n}">${n}</button>
+                                `).join('')}
+                                <button type="button" class="numpad-key-btn action-del" data-key="backspace" title="Hapus Digit">⌫</button>
+                            </div>
+                        </div>
+
+                        <!-- Live Guess Breakdown Preview -->
+                        <div class="guess-preview-pill">
+                            <span class="preview-lbl">ANGKA TEBAKAN:</span>
+                            <div class="preview-values">
+                                <span class="badge-combo">4D: <b id="lbl-prev-4d">${(this.digits[0]||'0')+(this.digits[1]||'0')+(this.digits[2]||'0')+(this.digits[3]||'0')}</b></span>
+                                <span class="badge-combo">3D: <b id="lbl-prev-3d">${(this.digits[1]||'0')+(this.digits[2]||'0')+(this.digits[3]||'0')}</b></span>
+                                <span class="badge-combo">2D: <b id="lbl-prev-2d">${(this.digits[2]||'0')+(this.digits[3]||'0')}</b></span>
+                            </div>
+                        </div>
+
+                        <!-- Package Selection Strip -->
+                        <div class="package-strip">
+                            <label class="pkg-chip ${this.bet4D ? 'checked' : ''}">
+                                <input type="checkbox" id="chk-bet-4d" ${this.bet4D ? 'checked' : ''}>
+                                <div class="pkg-label">
+                                    <span class="pkg-code">4D STRAIGHT</span>
+                                    <span class="pkg-rate">3.000× + JP</span>
+                                </div>
+                            </label>
+                            <label class="pkg-chip ${this.bet3D ? 'checked' : ''}">
+                                <input type="checkbox" id="chk-bet-3d" ${this.bet3D ? 'checked' : ''}>
+                                <div class="pkg-label">
+                                    <span class="pkg-code">3D BELAKANG</span>
+                                    <span class="pkg-rate">400×</span>
+                                </div>
+                            </label>
+                            <label class="pkg-chip ${this.bet2D ? 'checked' : ''}">
+                                <input type="checkbox" id="chk-bet-2d" ${this.bet2D ? 'checked' : ''}>
+                                <div class="pkg-label">
+                                    <span class="pkg-code">2D EKOR</span>
+                                    <span class="pkg-rate">70×</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: COLOK & 50:50 SIDE BETS -->
+                <div class="tab-page ${this.activeMarketTab === 'quick' ? 'active' : ''}" id="page-tab-quick">
+                    <div class="sidebets-layout">
+                        <!-- Colok Bebas Block -->
+                        <div class="sidebet-block">
+                            <div class="block-head">
+                                <span class="card-caption">🎲 COLOK BEBAS (TEBAK 1 ANGKA)</span>
+                                <span class="rate-tag">1.55×</span>
+                            </div>
+                            <div class="colok-keypad-10">
+                                ${[0,1,2,3,4,5,6,7,8,9].map(n => `
+                                    <button type="button" class="colok-btn ${this.selectedColokDigit === n ? 'active' : ''}" data-digit="${n}">
+                                        ${n}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- 50:50 Block -->
+                        <div class="sidebet-block">
+                            <div class="block-head">
+                                <span class="card-caption">⚖️ 50:50 (DIHITUNG DARI 2D)</span>
+                                <span class="rate-tag">1.95×</span>
+                            </div>
+                            <div class="fifty-quad-grid">
+                                <button type="button" class="fifty-pill ${this.selectedFiftyChoice === 'besar' ? 'active' : ''}" data-choice="besar">
+                                    <span class="f-title">BESAR</span>
+                                    <span class="f-sub">50 - 99</span>
+                                </button>
+                                <button type="button" class="fifty-pill ${this.selectedFiftyChoice === 'kecil' ? 'active' : ''}" data-choice="kecil">
+                                    <span class="f-title">KECIL</span>
+                                    <span class="f-sub">00 - 49</span>
+                                </button>
+                                <button type="button" class="fifty-pill ${this.selectedFiftyChoice === 'genap' ? 'active' : ''}" data-choice="genap">
+                                    <span class="f-title">GENAP</span>
+                                    <span class="f-sub">Ekor Genap</span>
+                                </button>
+                                <button type="button" class="fifty-pill ${this.selectedFiftyChoice === 'ganjil' ? 'active' : ''}" data-choice="ganjil">
+                                    <span class="f-title">GANJIL</span>
+                                    <span class="f-sub">Ekor Ganjil</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Docked Bottom Control Deck -->
+                <div class="docked-control-deck">
+                    <div class="bet-adjust-row">
+                        <div class="stake-label-box">
+                            <span class="deck-lbl">TARUHAN PER PAKET</span>
+                            <span class="deck-cost" id="togel-cost-breakdown">Total: $ 30,000 (3 Paket)</span>
+                        </div>
+                        <div class="stake-input-box">
+                            <span class="curr-sign">$</span>
                             <input type="text" id="togel-bet-input" value="10,000" ${this.isDrawing ? 'disabled' : ''}>
                         </div>
                     </div>
-                    <div class="bet-preset-chips">
-                        <button class="bet-chip togel-preset" data-val="10000" ${this.isDrawing ? 'disabled' : ''}>$10K</button>
-                        <button class="bet-chip togel-preset" data-val="50000" ${this.isDrawing ? 'disabled' : ''}>$50K</button>
-                        <button class="bet-chip togel-preset" data-val="250000" ${this.isDrawing ? 'disabled' : ''}>$250K</button>
-                        <button class="bet-chip togel-preset" data-val="1000000" ${this.isDrawing ? 'disabled' : ''}>$1M</button>
-                        <button class="bet-chip bet-chip-max togel-preset" id="btn-togel-max" ${this.isDrawing ? 'disabled' : ''}>MAX</button>
-                    </div>
-                </div>
 
-                <!-- Action Draw Buttons -->
-                <div class="togel-action-buttons">
-                    <button id="btn-togel-draw" class="main-togel-btn buy">
-                        🎲 PASANG TARUHAN &amp; PUTAR UNDIAN
-                    </button>
-                    <button id="btn-togel-token" class="main-togel-btn token" ${this.lotteryTokens <= 0 ? 'disabled' : ''}>
-                        🎟️ PUTAR DENGAN TOKEN (${this.lotteryTokens})
-                    </button>
+                    <div class="chips-row">
+                        <button type="button" class="deck-chip togel-preset" data-val="10000" ${this.isDrawing ? 'disabled' : ''}>$10K</button>
+                        <button type="button" class="deck-chip togel-preset" data-val="50000" ${this.isDrawing ? 'disabled' : ''}>$50K</button>
+                        <button type="button" class="deck-chip togel-preset" data-val="250000" ${this.isDrawing ? 'disabled' : ''}>$250K</button>
+                        <button type="button" class="deck-chip togel-preset" data-val="1000000" ${this.isDrawing ? 'disabled' : ''}>$1M</button>
+                        <button type="button" class="deck-chip chip-max togel-preset" id="btn-togel-max" ${this.isDrawing ? 'disabled' : ''}>MAX</button>
+                    </div>
+
+                    <div class="action-buttons-row">
+                        <button type="button" id="btn-togel-draw" class="btn-giant-draw buy" ${this.isDrawing ? 'disabled' : ''}>
+                            🎲 PASANG &amp; PUTAR DRUM
+                        </button>
+                        <button type="button" id="btn-togel-token" class="btn-giant-draw token" ${this.lotteryTokens <= 0 || this.isDrawing ? 'disabled' : ''}>
+                            🎟️ PUTAR TOKEN (${this.lotteryTokens})
+                        </button>
+                    </div>
                 </div>
 
             </div>
 
-            <!-- Footer: Live Results History & Payout Reference -->
-            <div class="togel-footer-grid">
-                <div class="footer-card">
-                    <div class="card-title">📜 HASIL KELUARAN SEBELUMNYA</div>
-                    <div class="history-rows-box" id="togel-history-list">
-                        ${historyHTML}
-                    </div>
-                </div>
-                <div class="footer-card">
-                    <div class="card-title">📊 TABEL PEMBAYARAN TOGEL</div>
-                    <div class="payout-table-list">
-                        <div class="payout-row grand">
-                            <span>4D (Straight Tepat)</span>
-                            <span class="mult">3.000× Taruhan</span>
-                        </div>
-                        <div class="payout-row">
-                            <span>3D (Tiga Angka Belakang)</span>
-                            <span class="mult">400× Taruhan</span>
-                        </div>
-                        <div class="payout-row">
-                            <span>2D (Dua Angka Belakang)</span>
-                            <span class="mult">70× Taruhan</span>
-                        </div>
-                        <div class="payout-row">
-                            <span>Colok Bebas (1 Digit)</span>
-                            <span class="mult">1.55× Taruhan</span>
-                        </div>
-                        <div class="payout-row">
-                            <span>50:50 (Besar/Kecil/Genap/Ganjil)</span>
-                            <span class="mult">1.95× Taruhan</span>
-                        </div>
-                    </div>
+            <!-- Compact Result History & Payout Bottom Strip -->
+            <div class="bottom-history-strip">
+                <span class="hist-label">HASIL SEBELUMNYA:</span>
+                <div class="hist-list" id="togel-history-list">
+                    ${historyRows}
                 </div>
             </div>
 
         </div>
 
         <style>
-            .togel-suite-container {
-                max-width: 680px;
+            .togel-theater-root {
+                max-width: 620px;
                 margin: 0 auto;
                 text-align: center;
                 animation: fade-up 0.3s ease;
                 box-sizing: border-box;
-                padding-bottom: 2rem;
+                padding: 0.1rem 0.2rem 1.5rem 0.2rem;
             }
-            .togel-header { margin-bottom: 0.75rem; }
-            .togel-title {
-                font-family: var(--font-display, 'Russo One', sans-serif);
-                font-size: 1.55rem;
-                font-weight: 900;
-                margin: 0.35rem 0 0.15rem 0;
-            }
-            .title-grad {
-                background: linear-gradient(90deg, #f59e0b, #fbbf24, #ef4444);
-                -webkit-background-clip: text;
-                background-clip: text;
-                -webkit-text-fill-color: transparent;
-            }
-            .togel-sub {
-                color: rgba(255,255,255,0.45);
-                font-size: 0.7rem;
-                font-weight: 700;
-                letter-spacing: 0.08em;
-                margin-bottom: 0.5rem;
-            }
-            .rate-badge-wrap { display: flex; justify-content: center; }
 
-            /* Progressive Vault */
-            .jackpot-pool-vault {
-                background: radial-gradient(circle at 50% 0%, rgba(245,158,11,0.2) 0%, rgba(18,14,10,0.95) 100%);
-                border: 2px solid #fbbf24;
-                border-radius: 14px;
-                padding: 1rem;
-                margin-bottom: 0.75rem;
-                box-shadow: 0 0 25px rgba(251,191,36,0.25), inset 0 0 20px rgba(0,0,0,0.8);
+            /* Industrial Light Bar */
+            .theater-marquee-lights {
+                display: flex;
+                justify-content: center;
+                gap: 0.4rem;
+                margin-bottom: 0.35rem;
             }
-            .vault-label {
-                font-size: 0.72rem;
+            .mini-bulb {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+            }
+            .mini-bulb.gold {
+                background: #fbbf24;
+                box-shadow: 0 0 6px #fbbf24;
+                animation: lightBlink 0.6s infinite alternate;
+            }
+            .mini-bulb.amber {
+                background: #f97316;
+                box-shadow: 0 0 6px #f97316;
+                animation: lightBlink 0.9s infinite alternate;
+            }
+
+            /* Header Card */
+            .togel-header-card {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(22, 17, 13, 0.85);
+                border: 1px solid rgba(251, 191, 36, 0.2);
+                border-radius: 12px;
+                padding: 0.45rem 0.75rem;
+                margin-bottom: 0.5rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            }
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
+                text-align: left;
+            }
+            .header-titles { line-height: 1.15; }
+            .arcade-title {
+                font-family: var(--font-display, 'Russo One', sans-serif);
+                font-size: 1.15rem;
                 font-weight: 900;
                 color: #fbbf24;
-                letter-spacing: 0.1em;
+                margin: 0;
+                letter-spacing: 0.04em;
             }
-            .vault-value {
+            .arcade-sub {
+                font-size: 0.58rem;
+                color: rgba(255,255,255,0.45);
+                font-weight: 800;
+                letter-spacing: 0.08em;
+            }
+
+            /* Progressive Jackpot Ribbon */
+            .jackpot-ribbon {
+                position: relative;
+                background: radial-gradient(circle at 50% 0%, #3a2618 0%, #15100c 100%);
+                border: 2px solid #fbbf24;
+                border-radius: 12px;
+                padding: 0.5rem 0.75rem;
+                margin-bottom: 0.6rem;
+                box-shadow: 0 0 18px rgba(251,191,36,0.25), inset 0 0 15px rgba(0,0,0,0.9);
+                overflow: hidden;
+            }
+            .ribbon-badge {
+                font-family: var(--font-display, sans-serif);
+                font-size: 0.65rem;
+                color: #fbbf24;
+                font-weight: 900;
+                letter-spacing: 0.12em;
+            }
+            .ribbon-value {
                 font-family: var(--font-num, monospace);
-                font-size: 2.3rem;
+                font-size: 1.95rem;
                 font-weight: 900;
                 color: #fff;
-                text-shadow: 0 0 20px rgba(251,191,36,0.8);
+                letter-spacing: 0.05em;
+                text-shadow: 0 0 16px rgba(251,191,36,0.7);
                 display: flex;
                 align-items: baseline;
                 justify-content: center;
                 gap: 0.25rem;
-                margin: 0.2rem 0;
             }
-            .vault-curr { color: #fbbf24; font-size: 1.4rem; }
-            .vault-subtext { font-size: 0.65rem; color: rgba(255,255,255,0.45); }
+            .ribbon-value .curr { color: #fbbf24; font-size: 1.2rem; }
+            .ribbon-value .unit { font-size: 0.75rem; color: #fbbf24; font-weight: 800; }
 
-            /* Token Strip */
-            .togel-token-strip {
+            /* 4-Drum Chamber */
+            .drum-chamber-theater {
+                background: linear-gradient(180deg, #1b1510 0%, #0d0a08 100%);
+                border: 3px solid #33271d;
+                border-top: 3px solid #4a392b;
+                border-radius: 16px;
+                padding: 0.65rem 0.75rem;
+                margin-bottom: 0.65rem;
+                box-shadow: 0 12px 35px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.95);
+            }
+            .chamber-header-strip {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                background: linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(124,58,237,0.08) 100%);
+                font-size: 0.62rem;
+                font-weight: 800;
+                color: rgba(255,255,255,0.6);
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+                padding-bottom: 0.4rem;
+                margin-bottom: 0.55rem;
+            }
+            .live-dot {
+                width: 7px;
+                height: 7px;
+                background: #ef4444;
+                border-radius: 50%;
+                display: inline-block;
+                animation: rateGlow 1s infinite alternate;
+            }
+            .token-pill {
+                color: #c084fc;
+                background: rgba(168,85,247,0.15);
                 border: 1px solid rgba(168,85,247,0.3);
-                border-radius: 10px;
-                padding: 0.45rem 1rem;
-                margin-bottom: 0.75rem;
+                padding: 2px 6px;
+                border-radius: 4px;
             }
-            .token-left { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; font-weight: 800; color: #c084fc; }
-            .token-count { font-size: 0.92rem; font-weight: 900; color: #fff; }
 
-            /* 4-Drum Cylinder Stage */
-            .cylinder-stage-box {
-                background: #090c10;
-                border: 2px solid #1e293b;
-                border-radius: 16px;
-                padding: 1rem;
-                margin-bottom: 0.85rem;
-                box-shadow: inset 0 0 25px rgba(0,0,0,0.9);
-            }
-            .stage-label-top {
-                font-size: 0.68rem;
-                font-weight: 900;
-                color: #ef4444;
-                letter-spacing: 0.08em;
-                margin-bottom: 0.75rem;
-            }
-            .drums-display-row {
+            .tumblers-row {
                 display: grid;
                 grid-template-columns: repeat(4, 1fr);
-                gap: 0.65rem;
-                max-width: 440px;
-                margin: 0 auto 0.65rem auto;
+                gap: 0.55rem;
+                margin-bottom: 0.55rem;
             }
-            .drum-cylinder {
-                background: rgba(255,255,255,0.02);
-                border: 1px solid rgba(255,255,255,0.1);
+            .tumbler-col {
+                background: rgba(0,0,0,0.4);
+                border: 1.5px solid rgba(255,255,255,0.08);
                 border-radius: 10px;
-                padding: 0.5rem 0.25rem;
-                text-align: center;
+                padding: 0.4rem 0.2rem;
                 position: relative;
                 overflow: hidden;
             }
-            .drum-pos-label {
-                font-size: 0.62rem;
-                font-weight: 800;
-                color: rgba(255,255,255,0.5);
+            .tumbler-label {
+                font-size: 0.58rem;
+                font-weight: 900;
+                color: rgba(255,255,255,0.4);
+                letter-spacing: 0.08em;
                 display: block;
-                margin-bottom: 0.25rem;
+                margin-bottom: 0.2rem;
             }
-            .drum-digit-box {
+            .tumbler-disc {
                 height: 52px;
-                background: radial-gradient(circle at 35% 35%, #2a221b 0%, #100d0a 100%);
+                background: radial-gradient(circle at 35% 35%, #291e16 0%, #100c09 100%);
                 border: 2px solid #fbbf24;
                 border-radius: 8px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                box-shadow: inset 0 0 10px rgba(0,0,0,0.95), 0 0 10px rgba(251,191,36,0.25);
+            }
+            .digit-text {
                 font-family: var(--font-num, monospace);
-                font-size: 2rem;
+                font-size: 2.1rem;
                 font-weight: 900;
                 color: #fbbf24;
-                box-shadow: inset 0 0 10px rgba(0,0,0,0.9), 0 0 12px rgba(251,191,36,0.3);
-                transition: transform 0.2s;
+                line-height: 1;
             }
-            .drum-digit-box.spinning {
-                animation: drumSpin 0.1s linear infinite;
-                color: #ef4444;
+            .tumbler-disc.spinning {
+                animation: drumSpin 0.08s linear infinite;
                 border-color: #ef4444;
             }
-            .drum-digit-box.revealed {
-                animation: popIn 0.3s ease-out;
+            .tumbler-disc.spinning .digit-text { color: #ef4444; }
+            .tumbler-disc.revealed {
                 background: radial-gradient(circle at 35% 35%, #fde047 0%, #d97706 70%, #78350f 100%);
-                color: #000;
                 border-color: #fff;
-                box-shadow: 0 0 20px rgba(251,191,36,0.8);
+                box-shadow: 0 0 18px rgba(251,191,36,0.85);
+                animation: popIn 0.3s ease-out;
             }
-            @keyframes drumSpin {
-                0% { transform: translateY(-4px); }
-                50% { transform: translateY(4px); }
-                100% { transform: translateY(-4px); }
-            }
-            .drum-status-ticker {
-                font-size: 0.72rem;
+            .tumbler-disc.revealed .digit-text { color: #000; }
+
+            .chamber-status-ticker {
+                font-size: 0.7rem;
                 color: rgba(255,255,255,0.7);
                 font-style: italic;
                 min-height: 20px;
+                padding: 0.2rem;
             }
 
-            /* Market Navigation Tabs */
-            .market-nav-tabs {
+            /* Market Tabs */
+            .market-segmented-tabs {
                 display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 0.4rem;
-                margin-bottom: 0.85rem;
+                grid-template-columns: 1.2fr 1fr;
+                gap: 0.35rem;
+                margin-bottom: 0.55rem;
             }
-            .market-tab-btn {
+            .seg-tab {
                 background: rgba(255,255,255,0.04);
-                border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 8px;
                 color: rgba(255,255,255,0.7);
-                padding: 0.6rem 0.4rem;
-                font-size: 0.75rem;
+                font-size: 0.72rem;
                 font-weight: 800;
+                padding: 0.5rem 0.25rem;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.15s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.3rem;
             }
-            .market-tab-btn:hover {
-                background: rgba(251,191,36,0.1);
-                color: #fff;
-            }
-            .market-tab-btn.active {
-                background: linear-gradient(135deg, rgba(251,191,36,0.2) 0%, rgba(217,119,6,0.3) 100%);
+            .seg-tab:hover { background: rgba(255,255,255,0.08); }
+            .seg-tab.active {
+                background: linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(217,119,6,0.25) 100%);
                 border-color: #fbbf24;
                 color: #fbbf24;
-                box-shadow: 0 0 12px rgba(251,191,36,0.3);
+                box-shadow: 0 0 10px rgba(251,191,36,0.25);
             }
 
-            /* Workspace */
-            .market-workspace-panel {
-                background: rgba(21, 17, 13, 0.75);
+            /* Workspace Deck */
+            .market-workspace-deck {
+                background: rgba(20, 16, 12, 0.85);
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 16px;
-                padding: 1rem;
-                backdrop-filter: blur(12px);
-                margin-bottom: 0.85rem;
+                border-radius: 14px;
+                padding: 0.75rem;
+                box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+                margin-bottom: 0.6rem;
                 text-align: left;
             }
-            .market-subview { display: none; }
-            .market-subview.active { display: block; animation: fade-up 0.25s ease; }
+            .tab-page { display: none; }
+            .tab-page.active { display: block; animation: fade-up 0.2s ease; }
 
-            .input-4d-header {
+            /* 4D Digit Grid */
+            .picker-top-row {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 0.75rem;
-                flex-wrap: wrap;
-                gap: 0.35rem;
+                margin-bottom: 0.45rem;
             }
-            .section-title { font-size: 0.8rem; font-weight: 800; color: #fff; }
-            .odds-highlight { font-size: 0.72rem; font-weight: 800; color: #fbbf24; }
-            .btn-action-pill {
-                background: rgba(251,191,36,0.12);
-                border: 1px solid rgba(251,191,36,0.35);
-                color: #fbbf24;
-                border-radius: 6px;
-                padding: 0.25rem 0.65rem;
-                font-size: 0.72rem;
+            .card-caption {
+                font-size: 0.68rem;
                 font-weight: 800;
+                color: rgba(255,255,255,0.5);
+                letter-spacing: 0.06em;
+            }
+            .btn-micro-action {
+                background: rgba(251,191,36,0.12);
+                border: 1px solid rgba(251,191,36,0.3);
+                color: #fbbf24;
+                font-size: 0.65rem;
+                font-weight: 800;
+                padding: 2px 7px;
+                border-radius: 6px;
                 cursor: pointer;
             }
-            .btn-action-pill:hover { background: rgba(251,191,36,0.25); }
-
-            /* 4D Digits Row */
-            .digit-inputs-row {
+            .btn-micro-action.clear {
+                background: rgba(255,255,255,0.05);
+                border-color: rgba(255,255,255,0.12);
+                color: rgba(255,255,255,0.6);
+            }
+            /* 4D Digit Input Chamber (Anti-Blowout Responsive Grid) */
+            .caption-with-badge {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                line-height: 1.15;
+            }
+            .caption-sub {
+                font-size: 0.58rem;
+                font-weight: 800;
+                color: #fbbf24;
+                letter-spacing: 0.08em;
+            }
+            .digit-inputs-chamber {
                 display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 0.65rem;
-                max-width: 360px;
-                margin: 0 auto 1rem auto;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 0.45rem;
+                width: 100%;
+                margin-bottom: 0.55rem;
+                box-sizing: border-box;
+            }
+            .digit-slot-card {
+                background: linear-gradient(180deg, #18120d 0%, #0d0907 100%);
+                border: 1.5px solid rgba(255,255,255,0.12);
+                border-radius: 10px;
+                padding: 0.35rem 0.25rem 0.3rem 0.25rem;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                box-sizing: border-box;
+                transition: all 0.2s ease;
+                min-width: 0;
+                cursor: pointer;
+            }
+            .digit-slot-card.focused {
+                border-color: #fbbf24;
+                box-shadow: 0 0 12px rgba(251,191,36,0.4);
+                background: linear-gradient(180deg, #241b12 0%, #150f0a 100%);
+            }
+            .slot-pos-tag {
+                font-size: 0.58rem;
+                font-weight: 900;
+                color: rgba(255,255,255,0.5);
+                letter-spacing: 0.08em;
+                margin-bottom: 0.2rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .digit-slot-card.focused .slot-pos-tag {
+                color: #fbbf24;
             }
             .box-digit-input {
-                height: 58px;
-                background: rgba(0,0,0,0.5);
-                border: 2px solid rgba(255,255,255,0.2);
-                border-radius: 10px;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                height: 48px;
+                background: #090706;
+                border: 1.5px solid rgba(255,255,255,0.12);
+                border-radius: 8px;
                 color: #fff;
                 font-family: var(--font-num, monospace);
-                font-size: 2.2rem;
+                font-size: 1.95rem;
                 font-weight: 900;
                 text-align: center;
                 outline: none;
-                transition: border-color 0.2s;
+                box-sizing: border-box !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                transition: border-color 0.2s, box-shadow 0.2s, color 0.2s;
             }
             .box-digit-input:focus {
                 border-color: #fbbf24;
-                box-shadow: 0 0 12px rgba(251,191,36,0.4);
+                box-shadow: 0 0 10px rgba(251,191,36,0.5);
+                color: #fbbf24;
             }
 
-            /* Package Checkboxes */
-            .package-options-grid {
-                display: flex;
-                flex-direction: column;
-                gap: 0.45rem;
-                margin-bottom: 1rem;
+            /* Quick Touch Keypad */
+            .digit-touch-keypad {
+                background: rgba(0,0,0,0.3);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-radius: 8px;
+                padding: 0.35rem 0.45rem;
+                margin-bottom: 0.55rem;
+                box-sizing: border-box;
             }
-            .package-checkbox-item {
+            .keypad-title {
+                font-size: 0.58rem;
+                font-weight: 800;
+                color: rgba(255,255,255,0.45);
+                display: block;
+                margin-bottom: 0.25rem;
+                letter-spacing: 0.06em;
+            }
+            .keypad-buttons-grid {
+                display: grid;
+                grid-template-columns: repeat(11, minmax(0, 1fr));
+                gap: 0.25rem;
+            }
+            .numpad-key-btn {
+                height: 32px;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 6px;
+                color: #fff;
+                font-family: var(--font-num, monospace);
+                font-size: 0.95rem;
+                font-weight: 900;
+                cursor: pointer;
                 display: flex;
                 align-items: center;
-                gap: 0.65rem;
+                justify-content: center;
+                padding: 0;
+                box-sizing: border-box;
+                transition: all 0.1s;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .numpad-key-btn:hover {
+                background: rgba(251,191,36,0.2);
+                border-color: #fbbf24;
+                color: #fbbf24;
+            }
+            .numpad-key-btn:active {
+                transform: scale(0.92);
+                background: #fbbf24;
+                color: #000;
+            }
+            .numpad-key-btn.action-del {
+                background: rgba(239,68,68,0.18);
+                border-color: rgba(239,68,68,0.35);
+                color: #f87171;
+            }
+            .numpad-key-btn.action-del:hover {
+                background: #ef4444;
+                color: #fff;
+            }
+
+            /* Live Guess Preview Pill */
+            .guess-preview-pill {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(251,191,36,0.06);
+                border: 1px dashed rgba(251,191,36,0.3);
+                border-radius: 8px;
+                padding: 0.3rem 0.55rem;
+                margin-bottom: 0.55rem;
+                box-sizing: border-box;
+            }
+            .preview-lbl {
+                font-size: 0.6rem;
+                font-weight: 900;
+                color: rgba(255,255,255,0.5);
+                letter-spacing: 0.06em;
+            }
+            .preview-values {
+                display: flex;
+                gap: 0.55rem;
+            }
+            .badge-combo {
+                font-size: 0.65rem;
+                font-weight: 800;
+                color: rgba(255,255,255,0.65);
+            }
+            .badge-combo b {
+                color: #fbbf24;
+                font-family: var(--font-num, monospace);
+                font-size: 0.78rem;
+                letter-spacing: 0.05em;
+            }
+
+            .package-strip {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.35rem;
+                margin-bottom: 0.75rem;
+            }
+            .pkg-chip {
                 background: rgba(255,255,255,0.03);
                 border: 1px solid rgba(255,255,255,0.08);
                 border-radius: 8px;
-                padding: 0.5rem 0.75rem;
+                padding: 0.4rem 0.3rem;
                 cursor: pointer;
-                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 0.35rem;
+                transition: all 0.15s;
             }
-            .package-checkbox-item.checked {
+            .pkg-chip.checked {
                 background: rgba(251,191,36,0.08);
                 border-color: rgba(251,191,36,0.35);
             }
-            .package-info { display: flex; justify-content: space-between; width: 100%; align-items: center; }
-            .pkg-title { font-size: 0.78rem; font-weight: 800; color: #fff; }
-            .pkg-odds { font-size: 0.72rem; font-weight: 800; color: #fbbf24; }
+            .pkg-label { line-height: 1.1; }
+            .pkg-code { font-size: 0.68rem; font-weight: 900; color: #fff; display: block; }
+            .pkg-rate { font-size: 0.6rem; font-weight: 800; color: #fbbf24; }
 
-            /* Colok Digit Balls Grid */
-            .colok-balls-grid {
-                display: grid;
-                grid-template-columns: repeat(5, 1fr);
-                gap: 0.5rem;
-                justify-items: center;
+            /* Sidebets */
+            .sidebets-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 0.6rem;
                 margin-bottom: 0.75rem;
             }
-            .colok-digit-btn {
-                width: 46px;
-                height: 46px;
-                border-radius: 50%;
-                background: radial-gradient(circle at 35% 35%, #2a221b 0%, #15110e 100%);
-                border: 1px solid rgba(255,255,255,0.12);
+            .sidebet-block {
+                background: rgba(0,0,0,0.25);
+                border: 1px solid rgba(255,255,255,0.05);
+                border-radius: 10px;
+                padding: 0.5rem;
+            }
+            .block-head {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.4rem;
+            }
+            .rate-tag { font-size: 0.68rem; font-weight: 900; color: #fbbf24; }
+            .colok-keypad-10 {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 0.35rem;
+            }
+            .colok-btn {
+                height: 38px;
+                border-radius: 8px;
+                background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(255,255,255,0.1);
                 color: #fff;
                 font-family: var(--font-num, monospace);
-                font-size: 1.3rem;
+                font-size: 1.15rem;
                 font-weight: 900;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.15s;
             }
-            .colok-digit-btn:hover { border-color: #fbbf24; transform: scale(1.08); }
-            .colok-digit-btn.selected {
-                background: radial-gradient(circle at 35% 35%, #fde047 0%, #d97706 70%, #78350f 100%) !important;
-                color: #000 !important;
-                box-shadow: 0 0 16px rgba(251,191,36,0.7);
-                border-color: #fff !important;
-                transform: scale(1.1);
+            .colok-btn.active {
+                background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+                color: #000;
+                border-color: #fff;
+                box-shadow: 0 0 10px rgba(251,191,36,0.6);
             }
-            .market-hint { font-size: 0.68rem; color: rgba(255,255,255,0.4); line-height: 1.4; margin-bottom: 0.75rem; }
 
-            /* 50:50 Grid */
-            .fifty-options-grid {
+            .fifty-quad-grid {
                 display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.6rem;
-                margin-bottom: 1rem;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.3rem;
             }
-            .fifty-btn {
-                background: rgba(255,255,255,0.03);
-                border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 10px;
-                padding: 0.75rem 0.5rem;
+            .fifty-pill {
+                background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 8px;
+                padding: 0.4rem 0.2rem;
                 cursor: pointer;
+                text-align: center;
+                transition: all 0.15s;
+            }
+            .fifty-pill.active {
+                background: rgba(251,191,36,0.18);
+                border-color: #fbbf24;
+                box-shadow: 0 0 10px rgba(251,191,36,0.25);
+            }
+            .f-title { font-size: 0.72rem; font-weight: 900; color: #fff; display: block; }
+            .fifty-pill.active .f-title { color: #fbbf24; }
+            .f-sub { font-size: 0.58rem; color: rgba(255,255,255,0.4); display: block; }
+
+            /* Docked Deck */
+            .docked-control-deck {
+                border-top: 1px solid rgba(255,255,255,0.08);
+                padding-top: 0.65rem;
                 display: flex;
                 flex-direction: column;
+                gap: 0.45rem;
+            }
+            .bet-adjust-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .stake-label-box { line-height: 1.15; }
+            .deck-lbl { font-size: 0.62rem; color: rgba(255,255,255,0.5); font-weight: 800; display: block; }
+            .deck-cost { font-size: 0.75rem; color: #10b981; font-weight: 900; }
+            .stake-input-box {
+                display: flex;
                 align-items: center;
                 gap: 0.2rem;
-                transition: all 0.2s;
+                border-bottom: 1.5px solid rgba(251,191,36,0.5);
             }
-            .fifty-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); }
-            .fifty-btn.selected {
-                background: linear-gradient(135deg, rgba(251,191,36,0.2) 0%, rgba(217,119,6,0.3) 100%);
-                border-color: #fbbf24;
-                box-shadow: 0 0 12px rgba(251,191,36,0.3);
-            }
-            .fifty-btn .btn-main { font-family: var(--font-display, sans-serif); font-size: 0.95rem; font-weight: 900; color: #fff; }
-            .fifty-btn.selected .btn-main { color: #fbbf24; }
-            .fifty-btn .btn-sub { font-size: 0.65rem; color: rgba(255,255,255,0.5); }
-
-            /* Stake Cockpit */
-            .togel-bet-cockpit {
-                border-top: 1px solid rgba(255,255,255,0.08);
-                padding-top: 0.75rem;
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-                margin-bottom: 0.85rem;
-            }
-            .bet-input-row { display: flex; justify-content: space-between; align-items: center; }
-            .bet-label-group { display: flex; flex-direction: column; gap: 2px; }
-            .lbl-taruhan { font-size: 0.68rem; font-weight: 800; color: rgba(255,255,255,0.5); }
-            .lbl-sub { font-size: 0.75rem; font-weight: 900; color: #10b981; }
-            .bet-number-wrap { display: flex; align-items: center; gap: 0.2rem; border-bottom: 1.5px solid rgba(251,191,36,0.5); }
-            .currency-prefix { font-size: 1.1rem; color: #fbbf24; font-weight: 900; }
+            .curr-sign { font-size: 1.1rem; color: #fbbf24; font-weight: 900; }
             #togel-bet-input {
                 background: transparent;
                 border: none;
@@ -673,109 +900,102 @@ export class LotteryEngine {
                 font-size: 1.25rem;
                 font-weight: 900;
                 color: #fff;
-                width: 120px;
+                width: 110px;
                 text-align: right;
                 outline: none;
             }
-            .bet-preset-chips {
+
+            .chips-row {
                 display: grid;
                 grid-template-columns: repeat(5, 1fr);
-                gap: 0.35rem;
+                gap: 0.25rem;
             }
-
-            /* Action Buttons */
-            .togel-action-buttons {
-                display: flex;
-                gap: 0.5rem;
-            }
-            .main-togel-btn {
-                font-family: var(--font-display, 'Russo One', sans-serif);
-                border: none;
-                border-radius: 12px;
-                padding: 0.95rem 1rem;
-                font-size: 1.1rem;
-                color: #fff;
-                cursor: pointer;
-                transition: all 0.2s;
-                letter-spacing: 0.04em;
-                text-shadow: 0 1px 2px rgba(0,0,0,0.6);
-            }
-            .main-togel-btn.buy {
-                flex: 1.6;
-                background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-                box-shadow: 0 4px 16px rgba(245,158,11,0.35);
-            }
-            .main-togel-btn.token {
-                flex: 1.2;
-                background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
-                box-shadow: 0 4px 16px rgba(168,85,247,0.35);
-            }
-            .main-togel-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
-            .main-togel-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-            /* Footer Panels */
-            .togel-footer-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 0.75rem;
-                text-align: left;
-            }
-            .footer-card {
-                background: rgba(20, 16, 12, 0.75);
-                border: 1px solid rgba(255,255,255,0.06);
-                border-radius: 12px;
-                padding: 0.75rem;
-            }
-            .card-title {
+            .deck-chip {
+                background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.85);
                 font-size: 0.68rem;
                 font-weight: 800;
-                color: rgba(255,255,255,0.45);
-                letter-spacing: 0.08em;
-                margin-bottom: 0.5rem;
-            }
-            .history-rows-box { display: flex; flex-direction: column; gap: 0.35rem; }
-            .result-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                background: rgba(255,255,255,0.02);
-                border: 1px solid rgba(255,255,255,0.04);
-                padding: 0.35rem 0.55rem;
+                padding: 0.3rem 0.15rem;
                 border-radius: 6px;
-                font-size: 0.72rem;
+                cursor: pointer;
             }
-            .result-row.won { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.05); }
-            .result-badge {
-                font-family: var(--font-num, monospace);
-                font-size: 0.95rem;
-                font-weight: 900;
-                color: #fbbf24;
-                letter-spacing: 0.1em;
-            }
-            .result-market { font-size: 0.62rem; color: rgba(255,255,255,0.45); margin-left: 6px; }
-            .win-text { color: #10b981; font-weight: 800; }
-            .lose-text { color: rgba(255,255,255,0.3); }
+            .deck-chip:hover { border-color: #fbbf24; color: #fbbf24; }
+            .deck-chip.chip-max { background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
 
-            .payout-table-list { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.72rem; }
-            .payout-row {
+            .action-buttons-row {
                 display: flex;
-                justify-content: space-between;
-                align-items: center;
-                background: rgba(255,255,255,0.02);
-                padding: 0.3rem 0.5rem;
-                border-radius: 6px;
-                color: rgba(255,255,255,0.8);
+                gap: 0.4rem;
+                margin-top: 0.2rem;
             }
-            .payout-row.grand { background: rgba(251,191,36,0.1); color: #fbbf24; font-weight: 800; }
-            .payout-row .mult { font-weight: 900; color: #fbbf24; }
+            .btn-giant-draw {
+                font-family: var(--font-display, 'Russo One', sans-serif);
+                border: none;
+                border-radius: 10px;
+                padding: 0.85rem 0.5rem;
+                font-size: 1rem;
+                color: #fff;
+                cursor: pointer;
+                letter-spacing: 0.04em;
+                transition: all 0.15s;
+            }
+            .btn-giant-draw.buy {
+                flex: 1.6;
+                background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                box-shadow: 0 4px 14px rgba(245,158,11,0.35);
+            }
+            .btn-giant-draw.token {
+                flex: 1.2;
+                background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+                box-shadow: 0 4px 14px rgba(168,85,247,0.35);
+            }
+            .btn-giant-draw:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+            .btn-giant-draw:disabled { opacity: 0.45; cursor: not-allowed; }
 
-            @media (max-width: 580px) {
-                .drums-display-row { gap: 0.35rem; }
-                .drum-digit-box { height: 44px; font-size: 1.6rem; }
-                .digit-inputs-row { gap: 0.35rem; }
-                .box-digit-input { height: 48px; font-size: 1.6rem; }
-                .togel-footer-grid { grid-template-columns: 1fr; }
-                .main-togel-btn { font-size: 0.95rem; padding: 0.8rem 0.5rem; }
+            /* Bottom History Strip */
+            .bottom-history-strip {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                background: rgba(0,0,0,0.35);
+                border: 1px solid rgba(255,255,255,0.05);
+                border-radius: 8px;
+                padding: 0.35rem 0.6rem;
+                overflow-x: auto;
+            }
+            .hist-label {
+                font-size: 0.6rem;
+                font-weight: 800;
+                color: rgba(255,255,255,0.4);
+                white-space: nowrap;
+            }
+            .hist-list {
+                display: flex;
+                gap: 0.4rem;
+                flex: 1;
+            }
+            .hist-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.3rem;
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-radius: 4px;
+                padding: 2px 6px;
+                font-size: 0.65rem;
+                white-space: nowrap;
+            }
+            .hist-chip.won { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+            .hist-num { font-family: var(--font-num, monospace); font-weight: 900; color: #fbbf24; }
+            .hist-tag { color: rgba(255,255,255,0.5); font-size: 0.58rem; }
+            .hist-win { color: rgba(255,255,255,0.3); }
+            .hist-win.win { color: #10b981; font-weight: 800; }
+
+            @media (max-width: 480px) {
+                .tumbler-disc { height: 44px; }
+                .digit-text { font-size: 1.7rem; }
+                .box-digit-input { height: 44px; font-size: 1.7rem; }
+                .btn-giant-draw { font-size: 0.85rem; padding: 0.75rem 0.35rem; }
             }
         </style>
         `;
@@ -809,34 +1029,138 @@ export class LotteryEngine {
             });
         });
 
-        // Market Tab buttons
-        container.querySelectorAll('.market-tab-btn').forEach(btn => {
+        // Market Tabs
+        container.querySelectorAll('.seg-tab').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isDrawing) return;
                 import('../ui/AuraSound.js').then(m => m.default.playTap());
                 this.activeMarketTab = btn.dataset.tab;
-                this.refreshUI(container);
+                
+                // Toggle active class on buttons
+                container.querySelectorAll('.seg-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Toggle active pages without wiping the drum stage
+                const page4d = document.getElementById('page-tab-4d');
+                const pageQuick = document.getElementById('page-tab-quick');
+                if (page4d && pageQuick) {
+                    page4d.classList.toggle('active', this.activeMarketTab === '4d');
+                    pageQuick.classList.toggle('active', this.activeMarketTab === 'quick');
+                }
+                this.updateCostBreakdown();
             });
         });
 
-        // 4D Box Digit Inputs auto-focus next
+        // Update live preview of chosen digits (4D, 3D, 2D)
+        this.updateGuessPreview = () => {
+            const d0 = this.digits[0] !== '' && this.digits[0] !== undefined ? this.digits[0] : '-';
+            const d1 = this.digits[1] !== '' && this.digits[1] !== undefined ? this.digits[1] : '-';
+            const d2 = this.digits[2] !== '' && this.digits[2] !== undefined ? this.digits[2] : '-';
+            const d3 = this.digits[3] !== '' && this.digits[3] !== undefined ? this.digits[3] : '-';
+
+            const p4d = document.getElementById('lbl-prev-4d');
+            const p3d = document.getElementById('lbl-prev-3d');
+            const p2d = document.getElementById('lbl-prev-2d');
+
+            if (p4d) p4d.textContent = `${d0}${d1}${d2}${d3}`;
+            if (p3d) p3d.textContent = `${d1}${d2}${d3}`;
+            if (p2d) p2d.textContent = `${d2}${d3}`;
+        };
+
+        const setActiveSlot = (idx) => {
+            this.activeDigitSlot = Math.max(0, Math.min(3, idx));
+            [0, 1, 2, 3].forEach(i => {
+                const wrap = document.getElementById(`slot-wrap-${i}`);
+                if (wrap) wrap.classList.toggle('focused', i === this.activeDigitSlot);
+            });
+            const targetIn = document.getElementById(`digit-in-${this.activeDigitSlot}`);
+            if (targetIn && document.activeElement !== targetIn) {
+                targetIn.focus();
+                targetIn.select();
+            }
+        };
+
+        // 4D Box Inputs auto-focus & slot selection
         [0, 1, 2, 3].forEach(idx => {
             const el = document.getElementById(`digit-in-${idx}`);
+            const wrap = document.getElementById(`slot-wrap-${idx}`);
+
+            if (wrap) {
+                wrap.addEventListener('click', () => setActiveSlot(idx));
+            }
+
             if (el) {
+                el.addEventListener('focus', () => setActiveSlot(idx));
+
                 el.addEventListener('input', (e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    e.target.value = val ? val[val.length - 1] : '';
-                    this.digits[idx] = e.target.value;
+                    const raw = e.target.value.replace(/\D/g, '');
+                    const val = raw ? raw[raw.length - 1] : '';
+                    e.target.value = val;
+                    this.digits[idx] = val;
+                    this.updateGuessPreview();
+
                     if (val && idx < 3) {
-                        document.getElementById(`digit-in-${idx + 1}`)?.focus();
+                        setActiveSlot(idx + 1);
                     }
                 });
+
                 el.addEventListener('keydown', (e) => {
                     if (e.key === 'Backspace' && !el.value && idx > 0) {
-                        document.getElementById(`digit-in-${idx - 1}`)?.focus();
+                        setActiveSlot(idx - 1);
+                    } else if (e.key === 'ArrowRight' && idx < 3) {
+                        setActiveSlot(idx + 1);
+                    } else if (e.key === 'ArrowLeft' && idx > 0) {
+                        setActiveSlot(idx - 1);
+                    }
+                });
+
+                el.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+                    if (pasted) {
+                        for (let i = 0; i < Math.min(4, pasted.length); i++) {
+                            this.digits[i] = pasted[i];
+                            const inputEl = document.getElementById(`digit-in-${i}`);
+                            if (inputEl) inputEl.value = pasted[i];
+                        }
+                        this.updateGuessPreview();
+                        setActiveSlot(Math.min(3, pasted.length));
                     }
                 });
             }
+        });
+
+        // Quick Touch Keypad for mobile & desktop
+        container.querySelectorAll('.numpad-key-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.isDrawing) return;
+                import('../ui/AuraSound.js').then(m => m.default.playTap());
+                const key = btn.dataset.key;
+
+                if (key === 'backspace') {
+                    const curVal = this.digits[this.activeDigitSlot];
+                    if (curVal) {
+                        this.digits[this.activeDigitSlot] = '';
+                        const curIn = document.getElementById(`digit-in-${this.activeDigitSlot}`);
+                        if (curIn) curIn.value = '';
+                    } else if (this.activeDigitSlot > 0) {
+                        setActiveSlot(this.activeDigitSlot - 1);
+                        this.digits[this.activeDigitSlot] = '';
+                        const prevIn = document.getElementById(`digit-in-${this.activeDigitSlot}`);
+                        if (prevIn) prevIn.value = '';
+                    }
+                } else if (/^[0-9]$/.test(key)) {
+                    this.digits[this.activeDigitSlot] = key;
+                    const curIn = document.getElementById(`digit-in-${this.activeDigitSlot}`);
+                    if (curIn) curIn.value = key;
+
+                    if (this.activeDigitSlot < 3) {
+                        setActiveSlot(this.activeDigitSlot + 1);
+                    }
+                }
+                this.updateGuessPreview();
+            });
         });
 
         // Quickpick 4D
@@ -848,6 +1172,21 @@ export class LotteryEngine {
                 const el = document.getElementById(`digit-in-${i}`);
                 if (el) el.value = this.digits[i];
             }
+            this.updateGuessPreview();
+            setActiveSlot(3);
+        });
+
+        // Clear 4D
+        document.getElementById('btn-clear-4d')?.addEventListener('click', () => {
+            if (this.isDrawing) return;
+            import('../ui/AuraSound.js').then(m => m.default.playTap());
+            for (let i = 0; i < 4; i++) {
+                this.digits[i] = '';
+                const el = document.getElementById(`digit-in-${i}`);
+                if (el) el.value = '';
+            }
+            this.updateGuessPreview();
+            setActiveSlot(0);
         });
 
         // Package Checkboxes
@@ -858,31 +1197,31 @@ export class LotteryEngine {
                     if (id === 'chk-bet-4d') this.bet4D = chk.checked;
                     if (id === 'chk-bet-3d') this.bet3D = chk.checked;
                     if (id === 'chk-bet-2d') this.bet2D = chk.checked;
-                    chk.closest('.package-checkbox-item')?.classList.toggle('checked', chk.checked);
+                    chk.closest('.pkg-chip')?.classList.toggle('checked', chk.checked);
                     this.updateCostBreakdown();
                 });
             }
         });
 
         // Colok Digit buttons
-        container.querySelectorAll('.colok-digit-btn').forEach(btn => {
+        container.querySelectorAll('.colok-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isDrawing) return;
                 import('../ui/AuraSound.js').then(m => m.default.playClick());
                 this.selectedColokDigit = parseInt(btn.dataset.digit, 10);
-                container.querySelectorAll('.colok-digit-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
+                container.querySelectorAll('.colok-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
             });
         });
 
         // 50:50 Choice buttons
-        container.querySelectorAll('.fifty-btn').forEach(btn => {
+        container.querySelectorAll('.fifty-pill').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isDrawing) return;
                 import('../ui/AuraSound.js').then(m => m.default.playClick());
                 this.selectedFiftyChoice = btn.dataset.choice;
-                container.querySelectorAll('.fifty-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
+                container.querySelectorAll('.fifty-pill').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
             });
         });
 
@@ -912,16 +1251,8 @@ export class LotteryEngine {
 
         const breakdownEl = document.getElementById('togel-cost-breakdown');
         if (breakdownEl) {
-            breakdownEl.textContent = `Total Biaya (${packages} Paket): $ ${total.toLocaleString()}`;
+            breakdownEl.textContent = `Total: $ ${total.toLocaleString()} (${packages} Paket)`;
         }
-    }
-
-    refreshUI(container) {
-        const betInputVal = document.getElementById('togel-bet-input')?.value || '10,000';
-        container.innerHTML = this.getHTML();
-        this.bindEvents(container, this.onBalanceRefresh);
-        const newInput = document.getElementById('togel-bet-input');
-        if (newInput) newInput.value = betInputVal;
     }
 
     async startDraw(useToken = false) {
@@ -956,7 +1287,7 @@ export class LotteryEngine {
             }
             this.lotteryTokens--;
             const tokenEl = document.getElementById('togel-token-display');
-            if (tokenEl) tokenEl.textContent = `${this.lotteryTokens} TIKET GRATIS`;
+            if (tokenEl) tokenEl.textContent = `🎟️ ${this.lotteryTokens} TIKET GRATIS`;
         } else {
             const balance = gameState.getBalance();
             if (totalCost > balance) {
@@ -1005,58 +1336,44 @@ export class LotteryEngine {
         if (rateOn) {
             if (this.activeMarketTab === '4d') {
                 if (Math.random() < 0.35) {
-                    // Match 2D (Kepala & Ekor)
                     resultDigits[2] = parseInt(this.digits[2], 10);
                     resultDigits[3] = parseInt(this.digits[3], 10);
                 } else if (Math.random() < 0.15) {
-                    // Match 3D
                     resultDigits[1] = parseInt(this.digits[1], 10);
                     resultDigits[2] = parseInt(this.digits[2], 10);
                     resultDigits[3] = parseInt(this.digits[3], 10);
                 }
-            } else if (this.activeMarketTab === 'colok') {
-                if (Math.random() < 0.80) {
+            } else if (this.activeMarketTab === 'quick') {
+                if (Math.random() < 0.70) {
                     const pos = Math.floor(Math.random() * 4);
                     resultDigits[pos] = this.selectedColokDigit;
-                }
-            } else if (this.activeMarketTab === 'fifty') {
-                if (Math.random() < 0.80) {
-                    if (this.selectedFiftyChoice === 'besar') {
-                        resultDigits[2] = Math.floor(Math.random() * 5) + 5; // 5-9
-                    } else if (this.selectedFiftyChoice === 'kecil') {
-                        resultDigits[2] = Math.floor(Math.random() * 5); // 0-4
-                    } else if (this.selectedFiftyChoice === 'genap') {
-                        resultDigits[3] = [0,2,4,6,8][Math.floor(Math.random() * 5)];
-                    } else if (this.selectedFiftyChoice === 'ganjil') {
-                        resultDigits[3] = [1,3,5,7,9][Math.floor(Math.random() * 5)];
-                    }
                 }
             }
         }
 
         // Animate 4 drums spinning
-        const drumBoxes = [
-            document.querySelector('#drum-0 .drum-digit-box'),
-            document.querySelector('#drum-1 .drum-digit-box'),
-            document.querySelector('#drum-2 .drum-digit-box'),
-            document.querySelector('#drum-3 .drum-digit-box')
+        const drumDiscs = [
+            document.querySelector('#drum-0 .tumbler-disc'),
+            document.querySelector('#drum-1 .tumbler-disc'),
+            document.querySelector('#drum-2 .tumbler-disc'),
+            document.querySelector('#drum-3 .tumbler-disc')
         ];
 
-        drumBoxes.forEach(box => {
-            if (box) {
-                box.className = 'drum-digit-box spinning';
-                box.textContent = Math.floor(Math.random() * 10);
+        drumDiscs.forEach(disc => {
+            if (disc) {
+                disc.className = 'tumbler-disc spinning';
+                disc.querySelector('.digit-text').textContent = Math.floor(Math.random() * 10);
             }
         });
 
         // Stop drums one by one (As -> Kop -> Kepala -> Ekor)
         for (let i = 0; i < 4; i++) {
-            await new Promise(r => setTimeout(r, 650));
+            await new Promise(r => setTimeout(r, 600));
             import('../ui/AuraSound.js').then(m => m.default.playTap());
-            const box = drumBoxes[i];
-            if (box) {
-                box.className = 'drum-digit-box revealed';
-                box.textContent = resultDigits[i];
+            const disc = drumDiscs[i];
+            if (disc) {
+                disc.className = 'tumbler-disc revealed';
+                disc.querySelector('.digit-text').textContent = resultDigits[i];
             }
         }
 
@@ -1092,15 +1409,17 @@ export class LotteryEngine {
                 totalWin += payout2D;
                 winDetails.push(`TEMBUS 2D (+${financeManager.formatCurrency(payout2D)} TC)`);
             }
-        } else if (this.activeMarketTab === 'colok') {
+        } else if (this.activeMarketTab === 'quick') {
+            // Colok Bebas Check
             const occurrences = resultDigits.filter(d => d === this.selectedColokDigit).length;
             if (occurrences > 0) {
                 const multiplier = 1.55 * occurrences;
                 const payoutColok = Math.round(unitBet * multiplier);
                 totalWin += payoutColok;
-                winDetails.push(`COLOK BEBAS ${this.selectedColokDigit} (${occurrences}x tembus: +${financeManager.formatCurrency(payoutColok)} TC)`);
+                winDetails.push(`COLOK ${this.selectedColokDigit} (+${financeManager.formatCurrency(payoutColok)} TC)`);
             }
-        } else if (this.activeMarketTab === 'fifty') {
+
+            // 50:50 Check
             let wonFifty = false;
             if (this.selectedFiftyChoice === 'besar' && user2D >= 50) wonFifty = true;
             if (this.selectedFiftyChoice === 'kecil' && user2D < 50) wonFifty = true;
@@ -1110,7 +1429,7 @@ export class LotteryEngine {
             if (wonFifty) {
                 const payoutFifty = Math.round(unitBet * 1.95);
                 totalWin += payoutFifty;
-                winDetails.push(`50:50 ${this.selectedFiftyChoice.toUpperCase()} TEMBUS (+${financeManager.formatCurrency(payoutFifty)} TC)`);
+                winDetails.push(`50:50 ${this.selectedFiftyChoice.toUpperCase()} (+${financeManager.formatCurrency(payoutFifty)} TC)`);
             }
         }
 
@@ -1150,33 +1469,27 @@ export class LotteryEngine {
         history.unshift({
             id: Date.now(),
             numbers: resultStr,
-            market: this.activeMarketTab === '4d' ? '4D/3D/2D' : (this.activeMarketTab === 'colok' ? 'Colok Bebas' : '50:50'),
+            market: this.activeMarketTab === '4d' ? '4D/3D/2D' : 'Colok & 50:50',
             payout: totalWin,
             isWin
         });
         this.saveHistory(history);
 
-        // Update history view
+        // Update history view in-place
         const historyList = document.getElementById('togel-history-list');
         if (historyList) {
-            historyList.innerHTML = history.slice(0, 4).map(h => `
-                <div class="result-row ${h.isWin ? 'won' : ''}">
-                    <div class="result-left">
-                        <span class="result-badge">${h.numbers}</span>
-                        <span class="result-market">${h.market}</span>
-                    </div>
-                    <div class="result-right">
-                        <span class="result-payout ${h.isWin ? 'win-text' : 'lose-text'}">
-                            ${h.isWin ? '+' + financeManager.formatCurrency(h.payout) + ' TC' : 'ZONK'}
-                        </span>
-                    </div>
+            historyList.innerHTML = history.slice(0, 3).map(h => `
+                <div class="hist-chip ${h.isWin ? 'won' : ''}">
+                    <span class="hist-num">${h.numbers}</span>
+                    <span class="hist-tag">${h.market}</span>
+                    <span class="hist-win ${h.isWin ? 'win' : ''}">${h.isWin ? '+' + financeManager.formatCurrency(h.payout) : 'ZONK'}</span>
                 </div>
             `).join('');
         }
 
         this.isDrawing = false;
 
-        if (drawBtn) { drawBtn.disabled = false; drawBtn.innerHTML = '🎲 PASANG TARUHAN &amp; PUTAR UNDIAN'; }
+        if (drawBtn) { drawBtn.disabled = false; drawBtn.innerHTML = '🎲 PASANG &amp; PUTAR DRUM'; }
         if (tokenBtn) { tokenBtn.disabled = this.lotteryTokens <= 0; }
     }
 }

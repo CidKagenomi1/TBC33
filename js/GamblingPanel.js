@@ -21,6 +21,7 @@ import { ZeusSlotEngine } from './casino/ZeusSlotEngine.js';
 import { LotteryEngine } from './casino/LotteryEngine.js';
 import { WheelEngine } from './casino/WheelEngine.js';
 import { ParlayEngine } from './casino/ParlayEngine.js';
+import casinoVolatility from './casino/CasinoVolatilityEngine.js';
 
 const GAME_CATALOG = {
     slot: { id: 'slot', name: 'Goldy Crush', icon: '🎰', fullTitle: '🎰 Goldy Crush (6x3)', reel: '6x3 REEL' },
@@ -42,6 +43,12 @@ class GamblingPanel {
         this.parlay = new ParlayEngine(refresh);
         this.activeTab = 'slot'; // 'slot' | 'mahjong' | 'zeus' | 'lottery' | 'wheel' | 'parlay'
         this._lobbyEventsBound = false;
+
+        // Auto-update luck meter and rate badges whenever casino loss counter updates
+        gameState.on('casino.ratePlays', () => {
+            this.updateLuckMeter();
+            this.updateHeaderRateBadge();
+        });
     }
 
     getGameMeta(tabId) {
@@ -164,16 +171,7 @@ class GamblingPanel {
         ui.info(`Beralih ke wahana ${meta.name}`, '🎮 Game Dimuat');
     }
 
-    updateLobbyUI() {
-        const meta = this.getGameMeta(this.activeTab);
-
-        // Update header active game pill
-        const headerPill = document.getElementById('header-active-game-pill');
-        if (headerPill) {
-            headerPill.innerHTML = `<span>${meta.icon}</span> ${meta.name}`;
-        }
-
-        // Update header rate badge for active slot game
+    updateHeaderRateBadge() {
         const headerRateContainer = document.getElementById('header-rate-badge-container');
         if (headerRateContainer) {
             let rateHTML = '';
@@ -183,9 +181,63 @@ class GamblingPanel {
                 rateHTML = this.mahjong.getRateStatusHTML();
             } else if (this.activeTab === 'zeus' && this.zeus) {
                 rateHTML = this.zeus.getRateStatusHTML();
+            } else if (this.activeTab === 'wheel' && this.wheel) {
+                rateHTML = this.wheel.getRateStatusHTML();
+            } else if (this.activeTab === 'lottery' && this.lottery) {
+                rateHTML = this.lottery.getRateStatusHTML();
+            } else if (this.activeTab === 'parlay' && this.parlay) {
+                rateHTML = this.parlay.getRateStatusHTML();
             }
             headerRateContainer.innerHTML = rateHTML;
         }
+    }
+
+    updateLuckMeter() {
+        const info = casinoVolatility.getLuckInfo();
+
+        const statusEl = document.getElementById('drawer-luck-status');
+        if (statusEl) {
+            statusEl.textContent = `${info.tierLabel} • ${info.losses} Kalah`;
+        }
+
+        const badgeContainer = document.getElementById('drawer-luck-badge-container');
+        if (badgeContainer) {
+            badgeContainer.innerHTML = info.isRateOn
+                ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.68rem; padding:0.18rem 0.55rem; border-radius:999px; box-shadow:0 0 10px rgba(239,68,68,0.5); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; letter-spacing:0.05em; border: 1.5px solid #fff;">⚡ RATE ON</div>`
+                : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.65); font-weight:800; font-size:0.65rem; padding:0.18rem 0.5rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.05em;">Rate: OFF (${info.losses}/250)</div>`;
+        }
+
+        const barEl = document.getElementById('drawer-luck-bar');
+        if (barEl) {
+            barEl.style.width = `${info.percent}%`;
+            barEl.classList.toggle('rate-on', info.isRateOn);
+        }
+
+        const accumEl = document.getElementById('drawer-luck-accum-info');
+        if (accumEl) {
+            accumEl.textContent = `Akumulasi Kalah: ${info.losses} / ${info.target}`;
+        }
+
+        const rateLabelEl = document.getElementById('drawer-luck-rate-label');
+        if (rateLabelEl) {
+            rateLabelEl.textContent = info.isRateOn 
+                ? '⚡ GACOR (3.5×)' 
+                : `${info.percent}% (${info.multiplier.toFixed(2)}×)`;
+            rateLabelEl.style.color = info.badgeColor;
+        }
+    }
+
+    updateLobbyUI() {
+        const meta = this.getGameMeta(this.activeTab);
+
+        // Update header active game pill
+        const headerPill = document.getElementById('header-active-game-pill');
+        if (headerPill) {
+            headerPill.innerHTML = `<span>${meta.icon}</span> ${meta.name}`;
+        }
+
+        // Update header rate badge for active game
+        this.updateHeaderRateBadge();
 
         // Update drawer current game banner
         const drawerTitle = document.getElementById('drawer-current-game-title');
@@ -193,11 +245,8 @@ class GamblingPanel {
             drawerTitle.textContent = meta.fullTitle;
         }
 
-        // Update luck status inside drawer
-        const luckEl = document.getElementById('drawer-luck-status');
-        if (luckEl) {
-            luckEl.textContent = this.getLuckStatus();
-        }
+        // Update luck meter widget inside drawer
+        this.updateLuckMeter();
 
         // Update game cards active state
         document.querySelectorAll('#drawer-game-grid .lobby-game-card').forEach(card => {
@@ -289,11 +338,11 @@ class GamblingPanel {
     }
 
     getLuckStatus() {
-        const donations = gameState.get('donations') || { luckMultiplier: 1.0, luckTicksRemaining: 0 };
-        if (donations.luckTicksRemaining > 0 && donations.luckMultiplier > 1) {
-            return `✨ SANGAT BERUNTUNG (${donations.luckMultiplier}×)`;
+        const info = casinoVolatility.getLuckInfo();
+        if (info.isRateOn) {
+            return `🔥 RATE ON GACOR (3.5×)`;
         }
-        return 'NORMAL (1.0×)';
+        return `${info.tierIcon} ${info.tierLabel} • ${info.losses} Kalah`;
     }
 
     refreshBalanceDisplay() {

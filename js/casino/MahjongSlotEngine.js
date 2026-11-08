@@ -469,6 +469,10 @@ export class MahjongSlotEngine {
     startAutoSpin(count = 25) {
         this.autoSpinCount = count;
         this.isAutoSpinning = true;
+        mobileHandler.requestWakeLock('auto-spin');
+        if (mobileHandler.isMobile) {
+            ui.info('Auto-Spin aktif. Layar HP akan tetap terjaga sampai putaran selesai.', '📱 Layar Tetap Aktif');
+        }
 
         const autoBtn = document.getElementById('btn-slot-auto');
         const autoText = document.getElementById('slot-auto-text');
@@ -487,6 +491,9 @@ export class MahjongSlotEngine {
     stopAutoSpin() {
         this.isAutoSpinning = false;
         this.autoSpinCount = 0;
+        if (!this.isSpinning) {
+            mobileHandler.releaseWakeLock();
+        }
 
         const autoBtn = document.getElementById('btn-slot-auto');
         const autoText = document.getElementById('slot-auto-text');
@@ -743,6 +750,7 @@ export class MahjongSlotEngine {
 
         this.isSpinning = true;
         this.skipRequested = false;
+        mobileHandler.requestWakeLock('spin');
         mobileHandler.hapticSpin();
         import('../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
 
@@ -770,17 +778,10 @@ export class MahjongSlotEngine {
         if (balEl) balEl.textContent = financeManager.formatCurrency(gameState.getBalance());
         this.onBalanceRefresh?.();
 
-        // Increment rate plays
-        let plays = gameState.get('casino.ratePlays') || 0;
-        plays++;
-        gameState.set('casino.ratePlays', plays);
-        const rateOn = plays >= 250;
-
-        const donations = gameState.get('donations') || { luckMultiplier: 1.0 };
-        let luck = donations.luckMultiplier || 1.0;
-        if (rateOn) {
-            luck = Math.max(luck, 3.5);
-        }
+        // Read accumulated luck & rate status from loss pity engine
+        const luckInfo = casinoVolatility.getLuckInfo();
+        const luck = luckInfo.multiplier;
+        const rateOn = luckInfo.isRateOn;
 
         // Direct spin outcome via Volatility Engine
         const evalResult = casinoVolatility.evaluateSpin(betAmount, balance, luck);
@@ -852,6 +853,9 @@ export class MahjongSlotEngine {
         await this._processTumbleSequence(betAmount, luck);
 
         this.isSpinning = false;
+        if (!this.isAutoSpinning) {
+            mobileHandler.releaseWakeLock();
+        }
         if (spinBtn) {
             spinBtn.disabled = false;
             spinBtn.innerHTML = '<span class="spin-icon">🀄</span> <span class="spin-text">SPIN</span>';
@@ -1153,7 +1157,13 @@ export class MahjongSlotEngine {
             }
         }
 
-        // Record outcome for streak tracking & greed punishment
+        // Record outcome for rate loss pity tracking & streaks
         casinoVolatility.recordOutcome(betAmount, totalPayout);
+
+        // Update rate badges
+        const rateContainer = document.getElementById('mahjong-rate-container');
+        if (rateContainer) rateContainer.innerHTML = this.getRateStatusHTML();
+        const headerRateContainer = document.getElementById('header-rate-badge-container');
+        if (headerRateContainer) headerRateContainer.innerHTML = this.getRateStatusHTML();
     }
 }
