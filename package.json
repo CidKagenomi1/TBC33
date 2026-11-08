@@ -1,0 +1,25 @@
+{
+  "name": "trilliun-bet33",
+  "version": "1.0.0",
+  "description": "Trilliun-Bet33 - Luxury VIP Casino Suite & Slot Engines",
+  "type": "module",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve ."
+  },
+  "keywords": [
+    "trilliun-bet33",
+    "casino",
+    "slot-machine",
+    "gambling-engine",
+    "lottery",
+    "wheel",
+    "parlay"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "gsap": "^3.12.5",
+    "pixi.js": "^7.4.2"
+  }
+}

@@ -1,0 +1,10 @@
+id,emoji,name,chinese_name,type,base_weight,multiplier_3x,multiplier_4x,multiplier_5x,multiplier_6x,description
+wild,🐉,Naga Emas (WILD),百搭,Wild,0,80,200,480,1200,"Simbol Liar Pengganti. Tercipta dari transformasi Simbol Emas saat meledak!"
+red_dragon,🀄,Naga Merah (Chun),中,Premium,4,50,125,300,750,"Simbol Premium Tertinggi. Kaligrafi Merah Tua Ukiran Pernis."
+green_dragon,🀅,Naga Hijau (Fa),發,Premium,8,25,63,150,375,"Simbol Kemakmuran Fa Cai. Giok Hijau Zamrud Berkilau."
+white_dragon,🀆,Naga Putih (Bai),白板,Standard,12,10,25,60,150,"Bingkai Celestial Biru Safir Kerajaan."
+bamboo,🀇,Bambu 8 (Ba Tiao),八條,Standard,18,5,13,30,75,"Bambu Bersepuh Pernis Merah & Hijau."
+dots,🀐,Koin Titik 5 (Wu Tong),五筒,Standard,25,3,8,18,45,"Bunga Koin Tembaga Lima Titik Keberuntungan."
+ingot,🀫,Batu Mahjong (Yuanbao),元宝,Standard,32,1,3,6,15,"Ubin Mahjong Klasik Giok Bertatahkan Emas."
+scatter,🏮,Lampion Emas (SCATTER),胡,Scatter,2,100,250,600,1500,"Pemicu Putaran Gratis & Bonus Game."
+
